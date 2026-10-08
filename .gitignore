@@ -12,6 +12,12 @@
 .idea/**/dictionaries
 .idea/**/shelf
 
+# Python cache files
+
+**pycache**/
+*.py[cod]
+
+
 # AWS User-specific
 .idea/**/aws.xml
 
