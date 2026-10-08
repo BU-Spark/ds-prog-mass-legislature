@@ -1,5 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
+from datetime import datetime
 
 URL = "https://malegislature.gov/Bills/194/HD3390"
 
@@ -55,3 +56,60 @@ history_response.raise_for_status()
 history_soup = BeautifulSoup(history_response.text, "html.parser")
 
 print(history_soup.get_text(" ", strip=True)[:3000])
+
+import re
+from io import BytesIO
+from pypdf import PdfReader
+
+# Download the bill PDF
+pdf_url = "https://malegislature.gov/Bills/194/H3110.pdf"
+
+pdf_response = requests.get(pdf_url, timeout=10)
+pdf_response.raise_for_status()
+
+# Read the PDF in memory
+pdf_reader = PdfReader(BytesIO(pdf_response.content))
+
+# Extract text from the first page
+first_page_text = pdf_reader.pages[0].extract_text() or ""
+
+print("First page of bill PDF:")
+print(first_page_text[:2500])
+
+# Locate the FILED ON label
+filed_match = re.search(
+    r"FILED\s+ON\s*:\s*([^\r\n]*)",
+    first_page_text,
+    re.IGNORECASE
+)
+
+if filed_match and filed_match.group(1).strip():
+    filed_date_raw = filed_match.group(1).strip()
+    filed_date = datetime.strptime(
+        filed_date_raw, "%m/%d/%Y"
+    ).date().isoformat()
+
+    print("Filed date:", filed_date)
+else:
+    filed_date = None
+    print("Filed date not found")
+
+text_link = soup.find(
+    "a",
+    href=lambda href: href and href.endswith("/House/Bill/Text")
+)
+
+print("Text URL:", text_link["href"])
+
+bill_text_url = "https://malegislature.gov" + text_link["href"]
+
+text_response = requests.get(bill_text_url, timeout=10)
+text_response.raise_for_status()
+
+text_soup = BeautifulSoup(text_response.text, "html.parser")
+
+print(text_soup.get_text(" ", strip=True)[-4000:])
+
+for element in text_soup.find_all(string=lambda text: text and "SECTION 1." in text):
+    print("Found in:", element.parent.name)
+    print(element.parent.parent.prettify()[:4000])
