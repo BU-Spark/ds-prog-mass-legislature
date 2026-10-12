@@ -1,78 +1,96 @@
 
-<h1 align="center">
-  <br>
-  <a href="https://www.bu.edu/spark/" target="_blank"><img src="https://www.bu.edu/spark/files/2023/08/logo.png" alt="BUSpark" width="200"></a>
-  <br>
-  Project README Template <change to project name>
-  <br>
-</h1>
-
-<h4 align="center">A template for the project readme file. </h4> <change to repo short description>
-
-<p align="center">
-  <a href="#key-features">Key Features</a> •
-  <a href="#how-to-use">How To Use</a> •
-  <a href="#project-description">Project Description</a> •
-  <a href="#data-locations">Data Locations</a>
-</p>
+# Progressive Massachusetts Legislature Tracker
+ 
+Scrapes the bills on Progressive Massachusetts' legislative agenda from malegislature.gov: metadata, full text, filing date, and action history.
 
 ## Key Features
-In this section you will be including a list of key features of your code/project.
 
-You should also include a short description of what each part of your code does. (Detailed description in the readme of each directory, if applicable)
-* /path/to/directory - function and description
-  - Key notes
-* /path/to/script - function and description
-  - Key notes
-* Lorem Ipsum - Dolor Sit Amet
-  - Consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-* Duis Aute Irure Dolor
-  - Excepteur sint occaecat
-* Excepteur Sint Occaecat
-  - Curabitur efficitur, nunc non ultricies gravida, felis purus posuere eros, sed faucibus sapien est nec quam. Nulla at nisl nisl.
- 
+The scraper runs as a two-step pipeline: find the bills on the agenda, then scrape each one.
+
+* `discover_agenda_bills.py` - builds the list of bills to scrape
+  - Reads the [2025–2026 Progressive Mass legislative agenda](https://www.progressivemass.com/2025-2026-legislative-agenda/) and keeps every link that points to a malegislature.gov bill or docket (`H`, `S`, `HD`, `SD`).
+  - Keeps one URL per bill ID and writes them to `agenda_bill_urls.csv`.
+* `scrape_agenda.py` - scrapes every bill in the list
+  - Reads `agenda_bill_urls.csv`, calls `scrape_bill()` on each URL, and writes one JSON record per bill to `output/agenda_bills.jsonl`.
+  - Failures don't stop the run; they're logged to `output/agenda_errors.jsonl`.
+  - Waits 1 second between bills to avoid hammering the legislature site.
+* `scraper.py` - scraping logic for a single bill
+  - `extract_bill_metadata()` gets the bill number, title, sponsor, and links to the text, PDF, and history pages.
+  - `extract_filed_date()` reads the "FILED ON" date from the first page of the bill PDF.
+  - `extract_bill_text()` pulls the bill text and drops the duplicate copy some pages show.
+  - `extract_bill_history()` pulls each dated action from the bill history table.
+  - Running it directly scrapes one test bill (HD3390) and saves it to `bill.json` (gitignored).
+  - Docket numbers (e.g. `HD4328`) are never converted into guessed bill numbers. If a docket hasn't been assigned a bill number yet, the scraper uses the links on the docket page instead.
+* `tests/test_scraper.py` - checks that the text of H.3110 comes back with sections 1–9 in order.
+
 ## How To Use
 
-To clone and run this application, you'll need <a href="https://git-scm.com" target="_blank">Git</a>
-From your command line:
+You'll need Python 3 and [Git](https://git-scm.com).
 
 ```bash
-# Clone this repository
-$ git clone [repo link]
+# Clone the repo and switch to this branch
+git clone https://github.com/BU-Spark/ds-prog-mass-legislature.git
+cd ds-prog-mass-legislature
+git checkout feature/scraper
 
-# Further Instructions
-...
+# Install dependencies (requests, beautifulsoup4, pypdf)
+pip install -r requirements.txt
+
+# Step 1: find the bills on the agenda -> agenda_bill_urls.csv
+python discover_agenda_bills.py
+
+# Step 2: scrape each bill -> output/agenda_bills.jsonl
+python scrape_agenda.py
+
+# Optional: scrape just the single test bill -> bill.json
+python scraper.py
+
+# Run the tests (needs internet access; hits the live site)
+python -m unittest discover tests
 ```
 
-Create a new branch from dev, add changes on the new branch you just created.
+A full run of step 2 takes a few minutes because of the 1-second delay plus three or four requests per bill.
 
-You will want to look into <a href="https://git-scm.com/docs/git-branch" target="_blank">git branch</a> and <a href="https://git-scm.com/docs/git-checkout" target="_blank">git checkout</a>
+For contributing: create a new branch from `dev`, open a Pull Request to `dev`, and add your PM and TPM as reviewers.
 
-```bash
-# Create and Checkout a new branch if it doesn't exist
-$ git checkout -b your-branch main
-...
-```
-
-Open a Pull Request to dev. Add your PM and TPM as reviewers. 
-
-At the end of the semester during project wrap up open a final Pull Request to main from dev branch.
- 
 ## Project Description
 
-In this section, you should include the project description, either from the client or spark.
+This is a BU Spark! DS539 (Fall 2026) project for Progressive Massachusetts. The goal is to track what happens to the bills on their legislative agenda as they move through the Massachusetts Legislature. This branch covers data collection: getting each agenda bill's details, text, and history into a structured format the rest of the project can build on.
 
-Please make sure it reflects what you see on the documents (project description) you recieved.
+## Data Locations
 
-* Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla facilisi. Donec vel nunc at libero ultrices tincidunt. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Mauris ut ligula nec risus posuere ultricies at et ligula. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas.
-* Veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+* `agenda_bill_urls.csv` - the agenda bill list (43 bills: 21 House dockets, 22 Senate dockets, all session 194)
+  - Columns: `bill_id`, `session`, `link_text`, `url`
+* `output/agenda_bills.jsonl` - scraped bills, one JSON object per line (43 records from the last run)
+* `output/agenda_errors.jsonl` - URLs that failed, with `agenda_source_url`, `error_type`, `error` (empty after the last run)
+* More detail: [Dataset Documentation](dataset-documentation)
 
-## Data locations
+Fields in each `agenda_bills.jsonl` record:
 
-In this section, you should include the location of all of your datasets for the project (if applicable)
+| Field | Description |
+| :---- | :---- |
+| `bill_number` | Assigned bill number, e.g. `H.3422`. Null if the docket hasn't been assigned one. |
+| `title` | Bill title, e.g. "An Act establishing a jail and prison construction moratorium" |
+| `description` | Intended to hold the "By Representative…" description. Currently always null (see Known Issues). |
+| `presenter` | Lead sponsor |
+| `bill_url` | URL that was scraped (usually the docket page) |
+| `bill_page_url` | Official bill page |
+| `bill_text_url` | Bill text page |
+| `pdf_url` | Bill PDF |
+| `history_url` | Bill history page |
+| `filed_date` | Filing date from the PDF, ISO format (`YYYY-MM-DD`) |
+| `bill_text` | Full bill text, one paragraph per line |
+| `history` | List of actions, each with `date` (`M/D/YYYY`), `branch`, `action`, `related_bill` |
+| `agenda_source_url` | The URL as it appeared in the agenda list |
 
-<a href="dataset-documentation">Dataset Documentation</a>
-* Location 1: [location]
-  - [description]
-* Location 2: [location]
-  - [description]
+## Known Issues
+
+I found these while reading the code and the last run's output. They're worth fixing or at least knowing about before anyone uses the data.
+
+* **`description` is null for all 43 bills.** The extractor looks for text like "By Representative…" inside the `billInfo` section, and it never matches. I couldn't check the live page from here, so the cause still needs confirming; most likely that text sits outside `dl.billInfo` or is worded differently.
+* **HD4328 has no bill number and no history.** It hasn't been assigned a bill number, and its docket page has no link labeled "history", so `history_url` is null and `history` is empty. That's expected behavior for an unassigned docket, but it means one agenda bill has no tracking data.
+* **Session 194 is hard-coded** when building bill URLs in `extract_bill_metadata()`. This will need updating for the next session.
+* **A page without `dl.billInfo` will crash `extract_bill_metadata()`** with an `UnboundLocalError`, because the URL variables are only set inside that block. In the pipeline this gets logged as an error rather than stopping the run, but the bill is lost.
+* **Date formats don't match.** `filed_date` is ISO (`2025-01-09`) while history dates are `M/D/YYYY` (`2/27/2025`).
+* **The test depends on the live site**, so it fails offline or if the page changes.
+* **`requirements.txt` has no version pins.**
