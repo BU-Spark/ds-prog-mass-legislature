@@ -20,25 +20,38 @@ HEADERS = [
 
 
 def derive_stage(action):
-    """Infer a broad stage while preserving the full action separately."""
+    """Infer a broad legislative stage while preserving the full action."""
     text = (action or "").lower()
 
+    # More specific classifications should come before broad matches.
     rules = [
         (("introduced", "filed"), "Introduced"),
         (("referred to the committee", "referred to committee"), "Referred"),
-        (("hearing scheduled", "hearing held", "public hearing"), "Hearing"),
+
+        # Hearings, including scheduling changes and cancellations.
+        (("hearing",), "Hearing"),
+
+        # Reading and order-related actions.
+        (("read second", "second reading"), "Second Reading"),
+        (("read third", "third reading"), "Third Reading"),
+        (("orders of the day",), "Orders of the Day"),
+        (("order relative to subject matter adopted",), "Order Adopted"),
+
+        # New drafts should be distinguished from ordinary reports.
+        (("new draft substituted", "substituting a new draft"), "New Draft"),
+
+        # Committee reporting and legislative progress.
         (("reported favorably", "reported adversely", "reported by committee",
           "ought to pass", "ought not to pass"), "Reported"),
         (("passed to be engrossed", "engrossed"), "Engrossed"),
         (("passed to be enacted", "enacted"), "Enacted"),
         (("signed by the governor", "became law"), "Signed into law"),
+
         (("concurred",), "Concurred"),
         (("accompanied",), "Accompanied"),
         (("merged", "consolidated"), "Merged"),
         (("discharged",), "Discharged"),
         (("reporting date extended", "extended"), "Extension"),
-        (("second reading",), "Second Reading"),
-        (("third reading",), "Third Reading"),
     ]
 
     for phrases, stage in rules:

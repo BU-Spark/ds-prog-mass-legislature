@@ -41,6 +41,12 @@ def get_text(element):
 def extract_bill_metadata(soup, bill_url):
     """Extract bill details and related URLs from a bill or docket page."""
 
+    docket_match = re.search(
+        r"/Bills/\d+/(H[DS]\d+|S[DS]\d+)(?:/|$)",
+        bill_url,
+        flags=re.IGNORECASE,
+    )
+    docket_number = docket_match.group(1).upper() if docket_match else None
     # Find a heading containing an assigned bill number, such as H.3110.
     # Docket numbers such as HD4328 must not be mistaken for bill numbers.
     heading = soup.find(
@@ -50,6 +56,7 @@ def extract_bill_metadata(soup, bill_url):
             tag.get_text(" ", strip=True),
         )
     )
+
 
     bill_number = None
 
@@ -179,6 +186,7 @@ def extract_bill_metadata(soup, bill_url):
         "bill_text_url": bill_text_url,
         "pdf_url": pdf_url,
         "history_url": history_url,
+        "docket_number": docket_number,
     }
 
 
@@ -279,7 +287,7 @@ def extract_bill_text(text_url):
 
 
 def extract_bill_history(history_url):
-    """Extract dated actions from a bill history table."""
+    """Extract dated actions and all related bill references."""
     if not history_url:
         return []
 
@@ -305,19 +313,34 @@ def extract_bill_history(history_url):
         branch = get_text(cells[1])
         action = cells[2].get_text(" ", strip=True)
 
-        related_bill = None
-
+        # Collect every bill link in the action cell.
+        related_bills = []
         for link in cells[2].find_all("a", href=True):
             if "/Bills/" in link["href"]:
-                related_bill = get_text(link)
-                break
+                bill_reference = get_text(link)
+                if bill_reference and bill_reference not in related_bills:
+                    related_bills.append(bill_reference)
+
+        # Also detect bill numbers written as plain text, such as
+        # "Accompanied by H3591 and H3598", when they are not links.
+        import re
+
+        bill_pattern = re.compile(
+            r"\b(?:H|S)\.?\s*\d+\b",
+            re.IGNORECASE
+        )
+
+        for match in bill_pattern.findall(action):
+            normalized = re.sub(r"\s+", "", match).upper()
+            if normalized not in related_bills:
+                related_bills.append(normalized)
 
         history.append(
             {
                 "date": date,
                 "branch": branch,
                 "action": action,
-                "related_bill": related_bill,
+                "related_bill": " / ".join(related_bills) or None,
             }
         )
 
