@@ -12,6 +12,12 @@
 .idea/**/dictionaries
 .idea/**/shelf
 
+# Python cache files
+
+**pycache**/
+*.py[cod]
+
+
 # AWS User-specific
 .idea/**/aws.xml
 
@@ -168,3 +174,5 @@ $RECYCLE.BIN/
 
 # .nfs files are created when an open file is removed but is still being accessed
 .nfs*
+
+bill.json
