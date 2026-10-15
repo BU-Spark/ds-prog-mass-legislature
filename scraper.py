@@ -7,6 +7,8 @@ from urllib.parse import urljoin
 import requests
 from bs4 import BeautifulSoup
 from pypdf import PdfReader
+import time
+from requests.exceptions import ConnectionError, Timeout
 
 
 BASE_URL = "https://malegislature.gov"
@@ -15,18 +17,37 @@ BASE_URL = "https://malegislature.gov"
 BILL_URL = f"{BASE_URL}/Bills/194/HD3390"
 
 
+def download_response(url, max_attempts=4):
+    """Download a URL, retrying temporary connection failures."""
+    for attempt in range(max_attempts):
+        try:
+            response = requests.get(
+                url,
+                headers={"User-Agent": "Mozilla/5.0"},
+                timeout=30,
+            )
+            response.raise_for_status()
+            return response
+        except (ConnectionError, Timeout):
+            if attempt == max_attempts - 1:
+                raise
+
+            delay = 2 ** attempt
+            print(
+                f"Request failed; retrying in {delay}s "
+                f"({attempt + 1}/{max_attempts}): {url}"
+            )
+            time.sleep(delay)
+
+
 def get_soup(url):
     """Download a webpage and return its parsed HTML."""
     if not url:
         return None
 
-    response = requests.get(
-        url,
-        headers={"User-Agent": "Mozilla/5.0"},
-        timeout=30,
-    )
-    response.raise_for_status()
+    response = download_response(url)
     return BeautifulSoup(response.text, "html.parser")
+
 
 
 def get_text(element):
@@ -195,13 +216,7 @@ def extract_filed_date(pdf_url):
     if not pdf_url:
         return None
 
-    response = requests.get(
-        pdf_url,
-        headers={"User-Agent": "Mozilla/5.0"},
-        timeout=30,
-    )
-    response.raise_for_status()
-
+    response = download_response(pdf_url)
     reader = PdfReader(BytesIO(response.content))
 
     if not reader.pages:
