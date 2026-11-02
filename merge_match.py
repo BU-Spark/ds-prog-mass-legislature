@@ -8,8 +8,9 @@ For every (original bill -> new bill) pair, this script:
        - meaning:  cosine similarity to the closest new-bill section (sentence embeddings)
        - concepts: share of the section's statute citations, dollar amounts,
                    budget line items and defined terms found in the new bill
-  3. marks a section as incorporated if it clears any threshold, or as "partial"
-     (meaning 0.70-0.80: same topic in different terms, reported separately, check by hand),
+  3. marks a section as incorporated if it is verbatim (50%+ shared wording) or reworded
+     (meaning 0.80+ with 15%+ shared wording). "Partial" (meaning 0.70+, or shared
+     citations/amounts/terms only) is reported separately: same topic, check by hand,
   4. scores the bill as the share of its sections (and of its words) that were incorporated.
 
 Inputs (from the dataset-transform pipeline):
@@ -174,6 +175,12 @@ class Embedder:
 def match_pair(src_text, tgt_text, embedder, args):
     src_secs = split_sections(src_text)
     tgt_secs = split_sections(tgt_text)
+    # Also compare against each pair of neighboring target units joined together, so a
+    # passage that straddles a chunk boundary in the new bill can still be matched.
+    tgt_secs = tgt_secs + [
+        (f"{tgt_secs[k][0]} + {tgt_secs[k + 1][0]}", tgt_secs[k][1] + " " + tgt_secs[k + 1][1])
+        for k in range(len(tgt_secs) - 1)
+    ]
 
     tgt_all_shingles = shingles(tgt_text)
     tgt_sec_shingles = [shingles(t) for _, t in tgt_secs]
@@ -193,11 +200,14 @@ def match_pair(src_text, tgt_text, embedder, args):
         lex_by_sec = [containment(sh, t) for t in tgt_sec_shingles]
 
         sem = None
+        best_lex_j = max(range(len(lex_by_sec)), key=lex_by_sec.__getitem__) if lex_by_sec else None
         if sims is not None:
             sem = float(sims[i].max())
             best_j = int(sims[i].argmax())
         else:
-            best_j = max(range(len(lex_by_sec)), key=lex_by_sec.__getitem__) if lex_by_sec else None
+            best_j = best_lex_j
+        if lex >= args.lex_threshold and best_lex_j is not None:
+            best_j = best_lex_j  # copied text: show where the words actually are
 
         c = concepts(text)
         con = len(c & tgt_concepts) / len(c) if c else None
@@ -207,7 +217,9 @@ def match_pair(src_text, tgt_text, embedder, args):
             match_type = "boilerplate (not scored)"
         elif lex >= args.lex_threshold:
             match_type = "verbatim"
-        elif sem is not None and sem >= args.sem_threshold:
+        elif sem is not None and sem >= args.sem_threshold and lex >= args.reworded_min_words:
+            # Needs some shared phrasing too: a high meaning score with almost no shared
+            # words is usually boilerplate (e.g. every commission's member list).
             match_type = "reworded"
         elif con is not None and con >= args.concept_threshold and len(c) >= 2:
             match_type = "concepts only"
@@ -228,7 +240,9 @@ def match_pair(src_text, tgt_text, embedder, args):
             "concepts_missing": "; ".join(sorted(c - tgt_concepts)),
             "best_target_section": tgt_secs[best_j][0] if best_j is not None else None,
             "match_type": match_type,
-            "incorporated": match_type in ("verbatim", "reworded", "concepts only"),
+            # "concepts only" (shared citations/amounts/terms, little shared text) is a flag, not
+            # evidence: two bills amending the same section of law share its citation.
+            "incorporated": match_type in ("verbatim", "reworded"),
             "scored": not boilerplate,
             "preview": text[:160].replace("\n", " "),
         })
@@ -303,6 +317,8 @@ def main():
     p.add_argument("--lex-threshold", type=float, default=0.50)
     p.add_argument("--sem-threshold", type=float, default=0.80)
     p.add_argument("--concept-threshold", type=float, default=0.80)
+    p.add_argument("--reworded-min-words", type=float, default=0.15,
+                   help="minimum word overlap for 'reworded'; below it a high meaning score counts as 'partial'")
     p.add_argument("--partial-threshold", type=float, default=0.70,
                    help="meaning score for 'partial' (same topic, different terms); not counted as incorporated")
     p.add_argument("--model", default="sentence-transformers/all-MiniLM-L6-v2")
@@ -345,7 +361,7 @@ def main():
             "sections_incorporated": sum(s["incorporated"] for s in scored),
             "pct_sections_incorporated": round(sum(s["incorporated"] for s in scored) / len(scored), 3) if scored else None,
             "pct_words_incorporated": round(sum(s["words"] for s in scored if s["incorporated"]) / words, 3) if words else None,
-            "pct_words_partial": round(sum(s["words"] for s in scored if s["match_type"] == "partial") / words, 3) if words else None,
+            "pct_words_partial": round(sum(s["words"] for s in scored if s["match_type"] in ("partial", "concepts only")) / words, 3) if words else None,
             "verbatim": sum(s["match_type"] == "verbatim" for s in scored),
             "reworded": sum(s["match_type"] == "reworded" for s in scored),
             "concepts_only": sum(s["match_type"] == "concepts only" for s in scored),
