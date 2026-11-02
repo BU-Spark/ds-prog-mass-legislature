@@ -237,6 +237,31 @@ def extract_filed_date(pdf_url):
         match.group(1), "%m/%d/%Y"
     ).date().isoformat()
 
+SECTION_ONE = re.compile(r"\bsection\s+1\.", re.IGNORECASE)
+
+
+def _norm(s):
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def remove_repeated_copy(bill_text, compare_chars=200):
+    """Some pages repeat the bill text. Keep the first copy only.
+    A later 'Section 1.' counts as the start of a repeat only if the text after it
+    matches the text after the first one. A 'Section 1.' inside a newly inserted
+    chapter is followed by different text, so it is kept."""
+    first = SECTION_ONE.search(bill_text)
+    if first:
+        opening = _norm(bill_text[first.end():first.end() + compare_chars])
+        for later in SECTION_ONE.finditer(bill_text, first.end()):
+            if opening and _norm(bill_text[later.end():later.end() + compare_chars]) == opening:
+                return bill_text[:later.start()].strip()
+
+    head = bill_text[:compare_chars]
+    if len(bill_text) >= 2 * compare_chars:
+        repeat = bill_text.find(head, compare_chars)
+        if repeat != -1:
+            return bill_text[:repeat].strip()
+    return bill_text
 
 def extract_bill_text(text_url):
     """Extract bill text from the official bill text page."""
@@ -276,27 +301,7 @@ def extract_bill_text(text_url):
     if not bill_text:
         return None
 
-    # Some pages repeat the bill text. Keep only the first complete copy.
-    first_section = re.search(
-        r"\bSECTION\s+1\.",
-        bill_text,
-        flags=re.IGNORECASE,
-    )
-
-    if first_section:
-        remaining_text = bill_text[first_section.end():]
-
-        second_section = re.search(
-            r"\bSECTION\s+1\.",
-            remaining_text,
-            flags=re.IGNORECASE,
-        )
-
-        if second_section:
-            duplicate_start = (
-                first_section.end() + second_section.start()
-            )
-            bill_text = bill_text[:duplicate_start].strip()
+    bill_text = remove_repeated_copy(bill_text)
 
     return bill_text or None
 
