@@ -8,7 +8,8 @@ For every (original bill -> new bill) pair, this script:
        - meaning:  cosine similarity to the closest new-bill section (sentence embeddings)
        - concepts: share of the section's statute citations, dollar amounts,
                    budget line items and defined terms found in the new bill
-  3. marks a section as incorporated if it clears any threshold,
+  3. marks a section as incorporated if it clears any threshold, or as "partial"
+     (meaning 0.70-0.80: same topic in different terms, reported separately, check by hand),
   4. scores the bill as the share of its sections (and of its words) that were incorporated.
 
 Inputs (from the dataset-transform pipeline):
@@ -210,6 +211,10 @@ def match_pair(src_text, tgt_text, embedder, args):
             match_type = "reworded"
         elif con is not None and con >= args.concept_threshold and len(c) >= 2:
             match_type = "concepts only"
+        elif sem is not None and sem >= args.partial_threshold:
+            # Same topic in different terms. Real carryovers and look-alikes both land here,
+            # so it is reported separately and not counted as incorporated. Check by hand.
+            match_type = "partial"
         else:
             match_type = "not found"
 
@@ -298,6 +303,8 @@ def main():
     p.add_argument("--lex-threshold", type=float, default=0.50)
     p.add_argument("--sem-threshold", type=float, default=0.80)
     p.add_argument("--concept-threshold", type=float, default=0.80)
+    p.add_argument("--partial-threshold", type=float, default=0.70,
+                   help="meaning score for 'partial' (same topic, different terms); not counted as incorporated")
     p.add_argument("--model", default="sentence-transformers/all-MiniLM-L6-v2")
     p.add_argument("--no-embed", action="store_true", help="skip the meaning check")
     p.add_argument("--limit", type=int, help="only score the first N pairs (for testing)")
@@ -338,9 +345,11 @@ def main():
             "sections_incorporated": sum(s["incorporated"] for s in scored),
             "pct_sections_incorporated": round(sum(s["incorporated"] for s in scored) / len(scored), 3) if scored else None,
             "pct_words_incorporated": round(sum(s["words"] for s in scored if s["incorporated"]) / words, 3) if words else None,
+            "pct_words_partial": round(sum(s["words"] for s in scored if s["match_type"] == "partial") / words, 3) if words else None,
             "verbatim": sum(s["match_type"] == "verbatim" for s in scored),
             "reworded": sum(s["match_type"] == "reworded" for s in scored),
             "concepts_only": sum(s["match_type"] == "concepts only" for s in scored),
+            "partial": sum(s["match_type"] == "partial" for s in scored),
             "not_found": sum(s["match_type"] == "not found" for s in scored),
         })
 
