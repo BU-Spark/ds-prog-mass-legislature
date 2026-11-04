@@ -1,11 +1,11 @@
 
 # Progressive Massachusetts Legislature Tracker
  
-Scrapes the bills on Progressive Massachusetts' legislative agenda from malegislature.gov: metadata, full text, filing date, and action history.
+Scrapes the bills on Progressive Massachusetts' legislative agenda from malegislature.gov: metadata, full text, filing date, and action history. Discovering relationship between legislative bills 
 
 ## Key Features
 
-The scraper runs as a two-step pipeline: find the bills on the agenda, then scrape each one.
+The scraper runs as a three-step pipeline: inding the agenda bills, scraping seed details, and crawling related legislation
 
 * `discover_agenda_bills.py` - builds the list of bills to scrape
   - Reads the [2025–2026 Progressive Mass legislative agenda](https://www.progressivemass.com/2025-2026-legislative-agenda/) and keeps every link that points to a malegislature.gov bill or docket (`H`, `S`, `HD`, `SD`).
@@ -21,6 +21,14 @@ The scraper runs as a two-step pipeline: find the bills on the agenda, then scra
   - `extract_bill_history()` pulls each dated action from the bill history table.
   - Running it directly scrapes one test bill (HD3390) and saves it to `bill.json` (gitignored).
   - Docket numbers (e.g. `HD4328`) are never converted into guessed bill numbers. If a docket hasn't been assigned a bill number yet, the scraper uses the links on the docket page instead.
+* `crawl_related_bills.py` - recursive relationship crawler
+  - Input into `output/agenda_bills.jsonl` as seed records.
+  - Scans action logs for companion bills, or accompanied actions  (e.g., `H3591, H5311, S2696`).
+  - Recursively fetches related bills up to `--max-bills` default  of 500
+  - Generates a bill-to-bill graph edge list in `output/bill_relationships.csv`, complete record details in `output/all_bills.jsonl` and crawler run diagnostics into
+    `output/related_bill_crawl_report.json`
+* `export_actions.py` - flattens bill histories into a CSV tracker (`output/legislative_actions.csv`) any unassigned dockets lacking history are placed into
+   `output/legislative_actions_review.json`
 * `tests/test_scraper.py` - checks that the text of H.3110 comes back with sections 1–9 in order.
 
 ## How To Use
@@ -41,6 +49,12 @@ python discover_agenda_bills.py
 
 # Step 2: scrape each bill -> output/agenda_bills.jsonl
 python scrape_agenda.py
+
+# Step 3: Crawl companion and referenced bills -> output/all_bills.jsonl & output/bill_relationships.csv
+python crawl_related_bills.py --max-bills 500
+
+# Step 4: Export denormalized actions -> output/legislative_actions.csv
+python export_actions.py
 
 # Optional: scrape just the single test bill -> bill.json
 python scraper.py
@@ -63,6 +77,13 @@ This is a BU Spark! DS539 (Fall 2026) project for Progressive Massachusetts. The
   - Columns: `bill_id`, `session`, `link_text`, `url`
 * `output/agenda_bills.jsonl` - scraped bills, one JSON object per line (43 records from the last run)
 * `output/agenda_errors.jsonl` - URLs that failed, with `agenda_source_url`, `error_type`, `error` (empty after the last run)
+* `output/all_bills.jsonl` - combined dataset containing seed bills plus all recursively crawled related bills.
+* `output/bill_relationships.csv` - directed relationship edge list mapping source bills to referenced legislation.
+  - Columns: `source_bil`, `related_bill`, `relationship_type`, `action_date`, `branch`, `action`, `source_url`   
+* output/`legislative_actions.csv` - action-level tabular dataset where each row corresponds to one event in a bill's history.
+  - Columns: `Date`, `Branch`, `Bill Name`, `Bill Number`, `Bill Content`, `Stage`, `Action`, `Related Bill`, `Sources`
+* Sourcesoutput/legislative_actions_review.json - data quality audit file logging bills/dockets with missing histories.
+* output/related_bill_crawl_report.json - crawler diagnostics (coverage counts, unresolved references, error logs)
 * More detail: [Dataset Documentation](dataset-documentation)
 
 Fields in each `agenda_bills.jsonl` record:
@@ -83,6 +104,21 @@ Fields in each `agenda_bills.jsonl` record:
 | `history` | List of actions, each with `date` (`M/D/YYYY`), `branch`, `action`, `related_bill` |
 | `agenda_source_url` | The URL as it appeared in the agenda list |
 
+Fields in each `legislative_actions.csv` record:
+
+| Field | Description |
+| :---- | :---- |
+| `Date` | Date action took place (`M/D/YYYY`) |
+| `Branch` | Chamber taking action (`House`, `Senate`, or `Joint` |
+| `Bill Name` | Bill title, e.g. "An Act establishing a jail and prison construction moratorium" |
+| `Bill Number` | Assigned bill number, e.g. `H.3422` or `S.1127`. Null if the docket hasn't been assigned one.|
+| `Bill Content` | Web link pointing to the official bill page|
+| `Stage` |  Classification category of the bill's current standing (`Referred`, `Hearing`, `Extension`, `Concurred`, `Accompanied`) |
+| `Action` | Full raw text description of the recorded action |
+| `Related Bill` | Referenced companion bills, study orders, or new drafts|
+| `Source` |Legislative history page link|
+
+
 ## Known Issues
 
 I found these while reading the code and the last run's output. They're worth fixing or at least knowing about before anyone uses the data.
@@ -94,3 +130,4 @@ I found these while reading the code and the last run's output. They're worth fi
 * **Date formats don't match.** `filed_date` is ISO (`2025-01-09`) while history dates are `M/D/YYYY` (`2/27/2025`).
 * **The test depends on the live site**, so it fails offline or if the page changes.
 * **`requirements.txt` has no version pins.**
+

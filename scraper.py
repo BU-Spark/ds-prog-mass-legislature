@@ -7,6 +7,8 @@ from urllib.parse import urljoin
 import requests
 from bs4 import BeautifulSoup
 from pypdf import PdfReader
+import time
+from requests.exceptions import ConnectionError, Timeout
 
 
 BASE_URL = "https://malegislature.gov"
@@ -15,18 +17,37 @@ BASE_URL = "https://malegislature.gov"
 BILL_URL = f"{BASE_URL}/Bills/194/HD3390"
 
 
+def download_response(url, max_attempts=4):
+    """Download a URL, retrying temporary connection failures."""
+    for attempt in range(max_attempts):
+        try:
+            response = requests.get(
+                url,
+                headers={"User-Agent": "Mozilla/5.0"},
+                timeout=30,
+            )
+            response.raise_for_status()
+            return response
+        except (ConnectionError, Timeout):
+            if attempt == max_attempts - 1:
+                raise
+
+            delay = 2 ** attempt
+            print(
+                f"Request failed; retrying in {delay}s "
+                f"({attempt + 1}/{max_attempts}): {url}"
+            )
+            time.sleep(delay)
+
+
 def get_soup(url):
     """Download a webpage and return its parsed HTML."""
     if not url:
         return None
 
-    response = requests.get(
-        url,
-        headers={"User-Agent": "Mozilla/5.0"},
-        timeout=30,
-    )
-    response.raise_for_status()
+    response = download_response(url)
     return BeautifulSoup(response.text, "html.parser")
+
 
 
 def get_text(element):
@@ -41,6 +62,12 @@ def get_text(element):
 def extract_bill_metadata(soup, bill_url):
     """Extract bill details and related URLs from a bill or docket page."""
 
+    docket_match = re.search(
+        r"/Bills/\d+/(H[DS]\d+|S[DS]\d+)(?:/|$)",
+        bill_url,
+        flags=re.IGNORECASE,
+    )
+    docket_number = docket_match.group(1).upper() if docket_match else None
     # Find a heading containing an assigned bill number, such as H.3110.
     # Docket numbers such as HD4328 must not be mistaken for bill numbers.
     heading = soup.find(
@@ -50,6 +77,7 @@ def extract_bill_metadata(soup, bill_url):
             tag.get_text(" ", strip=True),
         )
     )
+
 
     bill_number = None
 
@@ -179,6 +207,7 @@ def extract_bill_metadata(soup, bill_url):
         "bill_text_url": bill_text_url,
         "pdf_url": pdf_url,
         "history_url": history_url,
+        "docket_number": docket_number,
     }
 
 
@@ -187,13 +216,7 @@ def extract_filed_date(pdf_url):
     if not pdf_url:
         return None
 
-    response = requests.get(
-        pdf_url,
-        headers={"User-Agent": "Mozilla/5.0"},
-        timeout=30,
-    )
-    response.raise_for_status()
-
+    response = download_response(pdf_url)
     reader = PdfReader(BytesIO(response.content))
 
     if not reader.pages:
@@ -214,6 +237,31 @@ def extract_filed_date(pdf_url):
         match.group(1), "%m/%d/%Y"
     ).date().isoformat()
 
+SECTION_ONE = re.compile(r"\bsection\s+1\.", re.IGNORECASE)
+
+
+def _norm(s):
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def remove_repeated_copy(bill_text, compare_chars=200):
+    """Some pages repeat the bill text. Keep the first copy only.
+    A later 'Section 1.' counts as the start of a repeat only if the text after it
+    matches the text after the first one. A 'Section 1.' inside a newly inserted
+    chapter is followed by different text, so it is kept."""
+    first = SECTION_ONE.search(bill_text)
+    if first:
+        opening = _norm(bill_text[first.end():first.end() + compare_chars])
+        for later in SECTION_ONE.finditer(bill_text, first.end()):
+            if opening and _norm(bill_text[later.end():later.end() + compare_chars]) == opening:
+                return bill_text[:later.start()].strip()
+
+    head = bill_text[:compare_chars]
+    if len(bill_text) >= 2 * compare_chars:
+        repeat = bill_text.find(head, compare_chars)
+        if repeat != -1:
+            return bill_text[:repeat].strip()
+    return bill_text
 
 def extract_bill_text(text_url):
     """Extract bill text from the official bill text page."""
@@ -253,33 +301,13 @@ def extract_bill_text(text_url):
     if not bill_text:
         return None
 
-    # Some pages repeat the bill text. Keep only the first complete copy.
-    first_section = re.search(
-        r"\bSECTION\s+1\.",
-        bill_text,
-        flags=re.IGNORECASE,
-    )
-
-    if first_section:
-        remaining_text = bill_text[first_section.end():]
-
-        second_section = re.search(
-            r"\bSECTION\s+1\.",
-            remaining_text,
-            flags=re.IGNORECASE,
-        )
-
-        if second_section:
-            duplicate_start = (
-                first_section.end() + second_section.start()
-            )
-            bill_text = bill_text[:duplicate_start].strip()
+    bill_text = remove_repeated_copy(bill_text)
 
     return bill_text or None
 
 
 def extract_bill_history(history_url):
-    """Extract dated actions from a bill history table."""
+    """Extract dated actions and all related bill references."""
     if not history_url:
         return []
 
@@ -305,19 +333,34 @@ def extract_bill_history(history_url):
         branch = get_text(cells[1])
         action = cells[2].get_text(" ", strip=True)
 
-        related_bill = None
-
+        # Collect every bill link in the action cell.
+        related_bills = []
         for link in cells[2].find_all("a", href=True):
             if "/Bills/" in link["href"]:
-                related_bill = get_text(link)
-                break
+                bill_reference = get_text(link)
+                if bill_reference and bill_reference not in related_bills:
+                    related_bills.append(bill_reference)
+
+        # Also detect bill numbers written as plain text, such as
+        # "Accompanied by H3591 and H3598", when they are not links.
+        import re
+
+        bill_pattern = re.compile(
+            r"\b(?:H|S)\.?\s*\d+\b",
+            re.IGNORECASE
+        )
+
+        for match in bill_pattern.findall(action):
+            normalized = re.sub(r"\s+", "", match).upper()
+            if normalized not in related_bills:
+                related_bills.append(normalized)
 
         history.append(
             {
                 "date": date,
                 "branch": branch,
                 "action": action,
-                "related_bill": related_bill,
+                "related_bill": " / ".join(related_bills) or None,
             }
         )
 

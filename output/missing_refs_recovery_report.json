@@ -1,0 +1,20 @@
+{
+  "references_attempted": [
+    "H5293",
+    "H5489",
+    "S1519",
+    "S1577",
+    "S248",
+    "S3241"
+  ],
+  "new_bill_records": [
+    "H5293",
+    "H5489",
+    "S1519",
+    "S1577",
+    "S248",
+    "S3241"
+  ],
+  "new_relationship_rows": 9,
+  "failures": []
+}
