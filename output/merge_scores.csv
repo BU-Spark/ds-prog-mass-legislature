@@ -1,0 +1,46 @@
+original_bill,merged_into,merge_type,action,status,sections_scored,sections_incorporated,pct_sections_incorporated,pct_words_incorporated,pct_words_partial,verbatim,reworded,concepts_only,partial,not_found
+H3591,H3594,accompanied by,Accompanied by H3591 and H3598,ok,3,0,0.0,0.0,0.45,0,0,0,1,2
+H3598,H3594,accompanied by,Accompanied by H3591 and H3598,ok,20,20,1.0,1.0,0.0,20,0,0,0,0
+H1405,H5590,new draft,"Accompanied a new draft, see H5590",ok,48,0,0.0,0.0,0.116,0,0,0,5,43
+H1577,H1544,accompanied by,Accompanied by H1577,ok,2,0,0.0,0.0,0.0,0,0,0,0,2
+H678,H555,accompanied by,Accompanied H555,ok,1,0,0.0,0.0,0.0,0,0,0,0,1
+H86,H4746,new draft,"Accompanied a new draft, see H4746",ok,14,0,0.0,0.0,0.224,0,0,0,4,10
+S2328,S2696,new draft,"Committee recommended ought to pass with an amendment, substituting a new draft, see S2696",ok,20,19,0.95,0.928,0.072,15,4,0,1,0
+S929,S2755,new draft,"Accompanied a new draft, see S2755",ok,4,0,0.0,0.0,0.0,0,0,0,0,4
+S2105,S2099,accompanied by,Accompanied by S2105 and S2210,ok,2,2,1.0,1.0,0.0,2,0,0,0,0
+S2210,S2099,accompanied by,Accompanied by S2105 and S2210,ok,8,1,0.125,0.114,0.0,0,1,0,0,7
+S2114,S2944,new draft,"Accompanied a new draft, see S2944",ok,4,4,1.0,1.0,0.0,4,0,0,0,0
+S1720,S2858,new draft,"Accompanied a new draft, see S2858",ok,25,5,0.2,0.171,0.637,3,2,1,14,5
+S371,S2689,new draft,"Accompanied a new draft, see S2689",ok,10,7,0.7,0.653,0.128,5,2,0,1,2
+S388,S400,accompanied by,Accompanied S400,ok,2,0,0.0,0.0,0.0,0,0,0,0,2
+S1127,H5316,accompanied by,Accompanied H5316,ok,9,0,0.0,0.0,0.0,0,0,0,0,9
+H714,H555,accompanied by,Accompanied by H678 and H714,ok,3,0,0.0,0.0,0.488,0,0,0,1,2
+H78,H4746,new draft,"New draft of H78 , H80 , H86 , H96 , H103 and H104",ok,63,59,0.937,0.975,0.002,55,4,0,1,3
+H80,H4746,new draft,"New draft of H78 , H80 , H86 , H96 , H103 and H104",ok,49,37,0.755,0.758,0.098,30,7,0,5,7
+H96,H4746,new draft,"New draft of H78 , H80 , H86 , H96 , H103 and H104",ok,12,0,0.0,0.0,0.603,0,0,0,6,6
+H103,H4746,new draft,"New draft of H78 , H80 , H86 , H96 , H103 and H104",ok,56,4,0.071,0.062,0.539,2,2,0,26,26
+H104,H4746,new draft,"New draft of H78 , H80 , H86 , H96 , H103 and H104",ok,85,5,0.059,0.055,0.543,1,4,0,40,40
+S322,S2689,new draft,"New draft of S322 , S371 , S412 and S444",ok,3,1,0.333,0.056,0.5,0,1,1,0,1
+S412,S2689,new draft,"New draft of S322 , S371 , S412 and S444",ok,9,1,0.111,0.015,0.0,0,1,0,0,8
+S444,S2689,new draft,"New draft of S322 , S371 , S412 and S444",ok,1,0,0.0,0.0,0.0,0,0,0,0,1
+S328,S400,accompanied by,"Accompanied by S328 , S337 , S345 , S348 , S354 , S369 , S385 , S388 , S394 , S407 S416 , S440 and S460",ok,1,0,0.0,0.0,0.0,0,0,0,0,1
+S337,S400,accompanied by,"Accompanied by S328 , S337 , S345 , S348 , S354 , S369 , S385 , S388 , S394 , S407 S416 , S440 and S460",ok,1,0,0.0,0.0,0.0,0,0,0,0,1
+S345,S400,accompanied by,"Accompanied by S328 , S337 , S345 , S348 , S354 , S369 , S385 , S388 , S394 , S407 S416 , S440 and S460",ok,1,0,0.0,0.0,0.0,0,0,0,0,1
+S348,S400,accompanied by,"Accompanied by S328 , S337 , S345 , S348 , S354 , S369 , S385 , S388 , S394 , S407 S416 , S440 and S460",ok,5,0,0.0,0.0,0.035,0,0,0,1,4
+S354,S400,accompanied by,"Accompanied by S328 , S337 , S345 , S348 , S354 , S369 , S385 , S388 , S394 , S407 S416 , S440 and S460",ok,1,0,0.0,0.0,0.0,0,0,0,0,1
+S369,S400,accompanied by,"Accompanied by S328 , S337 , S345 , S348 , S354 , S369 , S385 , S388 , S394 , S407 S416 , S440 and S460",ok,7,0,0.0,0.0,0.022,0,0,0,1,6
+S385,S400,accompanied by,"Accompanied by S328 , S337 , S345 , S348 , S354 , S369 , S385 , S388 , S394 , S407 S416 , S440 and S460",ok,1,0,0.0,0.0,1.0,0,0,0,1,0
+S394,S400,accompanied by,"Accompanied by S328 , S337 , S345 , S348 , S354 , S369 , S385 , S388 , S394 , S407 S416 , S440 and S460",ok,5,0,0.0,0.0,0.0,0,0,0,0,5
+S407,S400,accompanied by,"Accompanied by S328 , S337 , S345 , S348 , S354 , S369 , S385 , S388 , S394 , S407 S416 , S440 and S460",ok,1,0,0.0,0.0,1.0,0,0,0,1,0
+S416,S400,accompanied by,"Accompanied by S328 , S337 , S345 , S348 , S354 , S369 , S385 , S388 , S394 , S407 S416 , S440 and S460",ok,1,0,0.0,0.0,0.0,0,0,0,0,1
+S440,S400,accompanied by,"Accompanied by S328 , S337 , S345 , S348 , S354 , S369 , S385 , S388 , S394 , S407 S416 , S440 and S460",ok,5,0,0.0,0.0,0.181,0,0,0,1,4
+S460,S400,accompanied by,"Accompanied by S328 , S337 , S345 , S348 , S354 , S369 , S385 , S388 , S394 , S407 S416 , S440 and S460",ok,7,0,0.0,0.0,0.0,0,0,0,0,7
+S1059,H5316,new draft,"Also based on S1059 , S1122 , S1127 and S2665",ok,3,0,0.0,0.0,0.0,0,0,0,0,3
+S1122,H5316,new draft,"Also based on S1059 , S1122 , S1127 and S2665",ok,6,1,0.167,0.029,0.037,1,0,0,1,4
+S2665,H5316,new draft,"Also based on S1059 , S1122 , S1127 and S2665",ok,3,1,0.333,0.044,0.5,1,0,0,1,1
+H5293,H5305,new draft,Pending new draft of H5293,ok,40,38,0.95,0.977,0.023,33,5,0,2,0
+S248,S1511,accompanied by,Accompanied by S248,ok,8,8,1.0,1.0,0.0,8,0,0,0,0
+S1577,S1578,accompanied by,Accompanied by S1577,ok,7,7,1.0,1.0,0.0,7,0,0,0,0
+S1519,S1621,accompanied by,Accompanied by S1519,ok,3,3,1.0,1.0,0.0,3,0,0,0,0
+H5158,H5293,new draft,New draft of H5158,ok,24,20,0.833,0.757,0.13,18,2,0,2,2
+S2726,S3241,new draft,Substituted for S2726,ok,21,21,1.0,1.0,0.0,21,0,0,0,0
