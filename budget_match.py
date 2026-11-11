@@ -19,9 +19,9 @@ from pathlib import Path
 import pandas as pd
 
 from merge_match import (
-    Embedder, SECTION_RE, SUBSECTION_RE, _chunk, _split_on, match_pair,
-    norm_bill_id, prepare_target,
+    Embedder, SECTION_RE, SUBSECTION_RE, _chunk, _split_on, norm_bill_id,
 )
+from budget_match_core import match_budget_pair, prepare_budget_target
 
 DEFAULT_BUDGET_URL = "https://malegislature.gov/Bills/194/H5555.pdf"
 LINE_ITEM_START_RE = re.compile(r"(?m)^[ \t]*(\d{4}-\d{4})[ \t]+")
@@ -127,7 +127,7 @@ def summarize_sections(sections):
 
 def run_matching(bills, budget_text, budget_id, budget_source, embedder, args):
     budget_units = split_budget_sections(budget_text)
-    target_index = prepare_target(budget_text, embedder, target_sections=budget_units)
+    target_index = prepare_budget_target(budget_text, budget_units, embedder)
     print(f"Indexed {len(budget_units)} budget units (+ neighbor windows)")
     summary, sections = [], []
     for i, bill in enumerate(bills, 1):
@@ -141,8 +141,7 @@ def run_matching(bills, budget_text, budget_id, budget_source, embedder, args):
         if not str(bill["text"]).strip():
             summary.append({**base, "status": "missing bill text"})
             continue
-        results = match_pair(bill["text"], budget_text, embedder, args,
-                             target_index=target_index, local_target=True)
+        results = match_budget_pair(bill["text"], target_index, embedder, args)
         sections.extend({**base, **result} for result in results)
         summary.append({**base, "status": "ok" if any(s["scored"] for s in results) else "no scorable sections",
                         **summarize_sections(results)})
