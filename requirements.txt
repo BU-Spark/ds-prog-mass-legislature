@@ -1,3 +1,5 @@
 requests
 beautifulsoup4
 pypdf
+pandas
+sentence-transformers>=3.0
