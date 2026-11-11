@@ -167,7 +167,15 @@ def main(argv=None):
     p.add_argument("--concept-threshold", type=float, default=0.80)
     p.add_argument("--reworded-min-words", type=float, default=0.15)
     p.add_argument("--partial-threshold", type=float, default=0.70)
+    p.add_argument("--policy-min-terms", type=int, default=3,
+                   help="minimum distinct non-boilerplate terms shared locally (default 3)")
+    p.add_argument("--policy-min-coverage", type=float, default=0.35,
+                   help="minimum share of source policy terms shared locally (default 0.35)")
     args = p.parse_args(argv)
+    if args.policy_min_terms < 1:
+        p.error("--policy-min-terms must be positive")
+    if not (0 < args.policy_min_coverage <= 1):
+        p.error("--policy-min-coverage must be in (0, 1]")
     bills = load_agenda_bills(args.bills)
     if args.limit is not None:
         if args.limit < 1:
