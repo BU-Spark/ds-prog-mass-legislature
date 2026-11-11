@@ -1,0 +1,44 @@
+bill_number,bill_title,bill_url,budget_id,budget_source,status,sections_scored,sections_strong_match,pct_sections_strong_match,pct_words_strong_match,pct_words_partial,verbatim,reworded,concepts_only,partial,not_found
+H3422,An Act establishing a jail and prison construction moratorium,https://malegislature.gov/Bills/194/H3422,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,4,0,0.0,0.0,0.027,0,0,0,1,3
+H3594,An Act regarding free expression,https://malegislature.gov/Bills/194/H3594,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,20,0,0.0,0.0,0.026,0,0,0,2,18
+H834,An Act establishing same day registration of voters,https://malegislature.gov/Bills/194/H834,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,7,1,0.143,0.014,0.0,0,1,0,0,6
+H3056,An Act enabling a local option for a real estate transfer fee to fund affordable housing,https://malegislature.gov/Bills/194/H3056,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,18,1,0.056,0.006,0.0,0,1,0,0,17
+H1405,An Act establishing Medicare for All in Massachusetts,https://malegislature.gov/Bills/194/H1405,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,1,0,0.0,0.0,0.0,0,0,0,0,1
+H1436,An Act relative to debt-free public higher education,https://malegislature.gov/Bills/194/H1436,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,4,1,0.25,0.036,0.849,0,1,0,2,1
+H1811,An Act requiring clean slate automated record sealing,https://malegislature.gov/Bills/194/H1811,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,15,0,0.0,0.0,0.02,0,0,0,1,14
+H1544,An Act to guarantee a tenant’s first right of refusal,https://malegislature.gov/Bills/194/H1544,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,30,0,0.0,0.0,0.0,0,0,0,0,30
+H655,An Act to promote comprehensive and inclusive curriculum in schools,https://malegislature.gov/Bills/194/H655,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,10,2,0.2,0.023,0.374,0,2,0,3,5
+H678,An Act to fix the chapter 70 inflation adjustment,https://malegislature.gov/Bills/194/H678,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,1,0,0.0,0.0,0.0,0,0,0,0,1
+H2328,An Act enabling cities and towns to stabilize rents and protect tenants,https://malegislature.gov/Bills/194/H2328,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,2,0,0.0,0.0,0.0,0,0,0,0,2
+H799,An Act decoupling the municipal census from voter registration,https://malegislature.gov/Bills/194/H799,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,12,0,0.0,0.0,0.0,0,0,0,0,12
+H86,An Act to protect location privacy,https://malegislature.gov/Bills/194/H86,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,1,0,0.0,0.0,0.0,0,0,0,0,1
+H2591,An Act to build restorative family and community connection,https://malegislature.gov/Bills/194/H2591,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,25,0,0.0,0.0,0.006,0,0,0,1,24
+H1014,An Act establishing a climate change superfund,https://malegislature.gov/Bills/194/H1014,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,1,0,0.0,0.0,0.0,0,0,0,0,1
+H3110,An Act combating offshore tax avoidance,https://malegislature.gov/Bills/194/H3110,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,9,0,0.0,0.0,0.0,0,0,0,0,9
+H3547,"An Act preventing gas expansion to protect climate, community health and safety",https://malegislature.gov/Bills/194/H3547,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,37,2,0.054,0.005,0.007,2,0,0,2,33
+H1923,An Act to promote public safety and better outcomes for youth,https://malegislature.gov/Bills/194/H1923,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,90,3,0.033,0.025,0.063,3,0,0,9,78
+H2580,An Act to protect the civil rights and safety of all Massachusetts residents,https://malegislature.gov/Bills/194/H2580,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,9,1,0.111,0.013,0.0,0,1,0,0,8
+H1954,An Act ensuring access to equitable representation in immigration proceedings,https://malegislature.gov/Bills/194/H1954,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,9,0,0.0,0.0,0.0,0,0,0,0,9
+HD4328,An Act empowering students and schools to thrive,https://malegislature.gov/Bills/194/HD4328,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,14,0,0.0,0.0,0.647,0,0,1,8,5
+S2328,An Act regarding free expression,https://malegislature.gov/Bills/194/S2328,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,20,0,0.0,0.0,0.026,0,0,0,2,18
+S929,An Act relative to debt-free public higher education,https://malegislature.gov/Bills/194/S929,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,4,1,0.25,0.036,0.849,0,1,0,2,1
+S2099,An Act to provide sunlight to state government,https://malegislature.gov/Bills/194/S2099,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,5,0,0.0,0.0,0.103,0,0,1,0,4
+S197,An Act to protect safety and privacy by stopping the sale of location data,https://malegislature.gov/Bills/194/S197,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,1,0,0.0,0.0,1.0,0,0,0,1,0
+S503,An Act decoupling the municipal census from voter registration,https://malegislature.gov/Bills/194/S503,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,9,1,0.111,0.028,0.018,0,1,0,1,7
+S505,An Act establishing same day voter registration,https://malegislature.gov/Bills/194/S505,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,7,1,0.143,0.014,0.0,0,1,0,0,6
+S2114,An Act establishing a jail and prison construction moratorium,https://malegislature.gov/Bills/194/S2114,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,4,0,0.0,0.0,0.027,0,0,0,1,3
+S1114,An Act requiring clean slate automated record sealing,https://malegislature.gov/Bills/194/S1114,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,15,0,0.0,0.0,0.02,0,0,0,1,14
+S1720,An Act to build restorative family and community connection,https://malegislature.gov/Bills/194/S1720,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,25,0,0.0,0.0,0.006,0,0,0,1,24
+S998,An Act to guarantee a tenant’s first right of refusal,https://malegislature.gov/Bills/194/S998,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,30,0,0.0,0.0,0.0,0,0,0,0,30
+S1447,An Act enabling cities and towns to stabilize rents and protect tenants,https://malegislature.gov/Bills/194/S1447,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,2,0,0.0,0.0,0.0,0,0,0,0,2
+S1937,An Act enabling a local option for a real estate transfer fee to fund affordable housing,https://malegislature.gov/Bills/194/S1937,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,18,1,0.056,0.006,0.0,0,1,0,0,17
+S371,An Act to promote comprehensive and inclusive curriculum in schools,https://malegislature.gov/Bills/194/S371,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,10,2,0.2,0.023,0.374,0,2,0,3,5
+S374,An Act empowering students and schools to thrive,https://malegislature.gov/Bills/194/S374,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,14,1,0.071,0.01,0.637,1,0,1,7,5
+S1681,An Act to protect the civil rights and safety of all Massachusetts residents,https://malegislature.gov/Bills/194/S1681,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,9,1,0.111,0.013,0.0,0,1,0,0,8
+S588,An Act establishing a climate change superfund,https://malegislature.gov/Bills/194/S588,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,1,0,0.0,0.0,0.0,0,0,0,0,1
+S2033,An Act combating offshore tax avoidance,https://malegislature.gov/Bills/194/S2033,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,9,0,0.0,0.0,0.0,0,0,0,0,9
+S388,An Act to fix the chapter 70 inflation adjustment,https://malegislature.gov/Bills/194/S388,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,2,0,0.0,0.0,0.608,0,0,0,1,1
+S1127,An Act ensuring access to equitable representation in immigration proceedings,https://malegislature.gov/Bills/194/S1127,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,9,0,0.0,0.0,0.0,0,0,0,0,9
+S2290,"An Act preventing gas expansion to protect climate, community health and safety",https://malegislature.gov/Bills/194/S2290,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,20,1,0.05,0.005,0.007,1,0,0,1,18
+S1061,An Act to promote public safety and better outcomes for youths,https://malegislature.gov/Bills/194/S1061,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,90,3,0.033,0.025,0.063,3,0,0,9,78
+S860,An Act establishing medicare for all in Massachusetts,https://malegislature.gov/Bills/194/S860,H5555,https://malegislature.gov/Bills/194/H5555.pdf,ok,1,0,0.0,0.0,0.0,0,0,0,0,1
