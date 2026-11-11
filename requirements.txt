@@ -3,3 +3,4 @@ beautifulsoup4
 pypdf
 streamlit>=1.40
 pandas
+sentence-transformers>=3.0
