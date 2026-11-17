@@ -21,7 +21,7 @@ import pandas as pd
 from merge_match import (
     Embedder, SECTION_RE, SUBSECTION_RE, _chunk, _split_on, norm_bill_id,
 )
-from budget_match_core import match_budget_pair, prepare_budget_target
+from budget_match_core import match_whole_bill, prepare_budget_target
 
 DEFAULT_BUDGET_URL = "https://malegislature.gov/Bills/194/H5555.pdf"
 LINE_ITEM_START_RE = re.compile(r"(?m)^[ \t]*(\d{4}-\d{4})[ \t]+")
@@ -128,8 +128,11 @@ def summarize_sections(sections):
 def run_matching(bills, budget_text, budget_id, budget_source, embedder, args):
     budget_units = split_budget_sections(budget_text)
     target_index = prepare_budget_target(budget_text, budget_units, embedder)
+
     print(f"Indexed {len(budget_units)} budget units (+ neighbor windows)")
-    summary, sections = [], []
+
+    results = []
+
     for i, bill in enumerate(bills, 1):
         base = {
             "bill_number": bill["bill_number"],
@@ -138,16 +141,23 @@ def run_matching(bills, budget_text, budget_id, budget_source, embedder, args):
             "budget_id": budget_id,
             "budget_source": budget_source,
         }
+
         if not str(bill["text"]).strip():
-            summary.append({**base, "status": "missing bill text"})
+            results.append({**base, "status": "missing bill text"})
             continue
-        results = match_budget_pair(bill["text"], target_index, embedder, args)
-        sections.extend({**base, **result} for result in results)
-        summary.append({**base, "status": "ok" if any(s["scored"] for s in results) else "no scorable sections",
-                        **summarize_sections(results)})
+
+        match = match_whole_bill(bill["text"], target_index, embedder)
+
+        results.append({
+            **base,
+            "status": "ok" if match else "no match",
+            **(match or {}),
+        })
+
         print(f"{i}/{len(bills)} {bill['bill_number']}: "
-              f"{summary[-1]['sections_strong_match']}/{summary[-1]['sections_scored']} strong sections")
-    return pd.DataFrame(summary), pd.DataFrame(sections)
+              f"similarity={match['similarity'] if match else 'N/A'}")
+
+    return pd.DataFrame(results)
 
 
 def main(argv=None):
@@ -185,13 +195,11 @@ def main(argv=None):
     budget_id, budget_source, budget_text = load_budget(args.budget, args.budget_url, args.budget_cache)
     print(f"Loaded budget {budget_id}: {len(budget_text):,} characters from {budget_source}")
     embedder = None if args.no_embed else Embedder(args.model)
-    summary, sections = run_matching(bills, budget_text, budget_id, budget_source, embedder, args)
+    results = run_matching(bills, budget_text, budget_id, budget_source, embedder, args)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    summary.to_csv(out / "budget_scores.csv", index=False)
-    sections.to_csv(out / "budget_sections.csv", index=False)
-    print(f"Wrote {len(summary)} bill scores and {len(sections)} section matches to {out}")
-
+    results.to_csv(out / "budget_scores.csv", index=False)
+    print(f"Wrote {len(results)} bill scores to {out / 'budget_scores.csv'}")
 
 if __name__ == "__main__":
     main()

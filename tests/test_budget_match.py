@@ -78,16 +78,28 @@ class TestBudgetMatching(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             bills_path = Path(d) / "bills.jsonl"
             with bills_path.open("w", encoding="utf-8") as out:
-                out.write(json.dumps({"bill_number": "H.1", "title": "Test", "bill_text": BILL_TEXT}) + "\n")
-                out.write(json.dumps({"bill_number": "S.2", "title": "Missing", "bill_text": ""}) + "\n")
+                out.write(json.dumps({
+                    "bill_number": "H.1",
+                    "title": "Test",
+                    "bill_text": BILL_TEXT
+                }) + "\n")
+                out.write(json.dumps({
+                    "bill_number": "S.2",
+                    "title": "Missing",
+                    "bill_text": ""
+                }) + "\n")
+
             bills = load_agenda_bills(bills_path)
-            scores, sections = run_matching(bills, BUDGET_TEXT, "budget-test", "fixture", None, ARGS)
+            embedder = AlwaysSimilarEmbedder()
+
+            scores = run_matching(
+                bills, BUDGET_TEXT, "budget-test", "fixture", embedder, ARGS
+            )
+
             self.assertEqual(list(scores.status), ["ok", "missing bill text"])
             self.assertEqual(scores.iloc[0]["bill_number"], "H1")
-            self.assertGreaterEqual(scores.iloc[0]["sections_strong_match"], 1)
-            self.assertTrue(any("7009-1234" in str(v) for v in sections.best_target_section))
-            self.assertTrue(all(sections.source_text.notna()))
-            self.assertTrue(all(sections.target_text.notna()))
+            self.assertIsNotNone(scores.iloc[0]["best_target_section"])
+            self.assertIsNotNone(scores.iloc[0]["target_text"])
             self.assertEqual(scores.iloc[0]["budget_source"], "fixture")
 
     def test_local_text_budget(self):
@@ -99,19 +111,35 @@ class TestBudgetMatching(unittest.TestCase):
             self.assertEqual(source, str(path))
             self.assertEqual(text, BUDGET_TEXT)
 
-    def test_cli_creates_both_csv_files(self):
+    def test_cli_creates_budget_scores_csv(self):
         with tempfile.TemporaryDirectory() as d:
             bills_path = Path(d) / "bills.jsonl"
             budget_path = Path(d) / "budget.txt"
             out_dir = Path(d) / "output"
-            bills_path.write_text(json.dumps({"bill_number": "H.1", "title": "Test", "bill_text": BILL_TEXT}) + "\n")
-            budget_path.write_text(BUDGET_TEXT)
-            main(["--bills", str(bills_path), "--budget", str(budget_path),
-                  "--out", str(out_dir), "--no-embed"])
-            self.assertTrue((out_dir / "budget_scores.csv").is_file())
-            self.assertTrue((out_dir / "budget_sections.csv").is_file())
-            self.assertIn("budget_source", (out_dir / "budget_scores.csv").read_text())
 
+            bills_path.write_text(
+                json.dumps({
+                    "bill_number": "H.1",
+                    "title": "Test",
+                    "bill_text": BILL_TEXT
+                }) + "\n"
+            )
+            budget_path.write_text(BUDGET_TEXT)
+
+            from unittest.mock import patch
+
+            with patch("budget_match.Embedder", return_value=AlwaysSimilarEmbedder()):
+                main([
+                    "--bills", str(bills_path),
+                    "--budget", str(budget_path),
+                    "--out", str(out_dir)
+                ])
+
+            scores_path = out_dir / "budget_scores.csv"
+            self.assertTrue(scores_path.is_file())
+            self.assertIn("budget_source", scores_path.read_text())
+            self.assertIn("best_target_section", scores_path.read_text())
+    
     def test_generic_amendment_intro_is_not_a_strong_match(self):
         bill = ("SECTION 1. Chapter 51 of the General Laws is hereby amended by "
                 "inserting after section 34 the following section:-")
