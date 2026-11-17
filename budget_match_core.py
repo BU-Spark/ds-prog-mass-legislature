@@ -95,6 +95,10 @@ def prepare_budget_target(budget_text, budget_sections, embedder=None):
     ]
     policy_signals = [_policy_signals(text) for _, text in passages]
     return {
+        "passage_legal_references": [
+            extract_legal_references(text)
+            for _, text in passages
+        ],
         "passages": passages,
         "passage_shingles": [shingles(text) for _, text in passages],
         "passage_concepts": [concepts(text) for _, text in passages],
@@ -239,3 +243,195 @@ def match_budget_pair(bill_text, budget_index, embedder, args):
             "preview": text[:160].replace("\n", " "),
         })
     return rows
+
+
+def extract_legal_references(text):
+    """Extract Massachusetts General Laws chapter and section references."""
+    text = re.sub(r"\s+", " ", str(text or "").lower())
+
+    references = set()
+
+    # Example: "section 34 of chapter 51"
+    pattern1 = (
+        r"\bsection\s+(\d+[a-z]*)\s+of\s+"
+        r"(?:said\s+)?chapter\s+(\d+[a-z]*)\b"
+    )
+
+    # Example: "chapter 51, section 34"
+    pattern2 = (
+        r"\bchapter\s+(\d+[a-z]*)\s*,?\s*"
+        r"section\s+(\d+[a-z]*)\b"
+    )
+    # Example: "Chapter 51 ... inserting after section 34"
+    pattern3 = (
+        r"\bchapter\s+(\d+[a-z]*)\s+of\s+the\s+general\s+laws"
+        r".{0,120}?\b(?:after|before)\s+section\s+(\d+[a-z]*)\b"
+    )
+    # Example: "Section 41A of said chapter 54"
+    pattern4 = (
+        r"\bsection\s+(\d+[a-z]*)\s+of\s+said\s+chapter\s+(\d+[a-z]*)\b"
+    )
+    # Example: "Chapter 54 ... Section 41A of said chapter"
+    chapter_mentions = list(re.finditer(
+        r"\bchapter\s+(\d+[a-z]*)\b", text
+    ))
+
+    for match in re.finditer(
+        r"\bsection\s+(\d+[a-z]*)\s+of\s+said\s+chapter\b"
+        r"(?!\s+\d)",
+        text
+    ):
+        previous = [
+            m for m in chapter_mentions
+            if m.start() < match.start()
+        ]
+
+        if previous:
+            chapter = previous[-1].group(1)
+            section = match.group(1)
+            references.add((chapter, section))
+    for section, chapter in re.findall(pattern4, text):
+        references.add((chapter, section))
+
+    for chapter, section in re.findall(pattern3, text):
+        references.add((chapter, section))
+
+    for section, chapter in re.findall(pattern1, text):
+        references.add((chapter, section))
+
+    for chapter, section in re.findall(pattern2, text):
+        references.add((chapter, section))
+
+    return references
+
+def compare_legal_references(bill_text, budget_text):
+    """Compare legal references between a bill and budget passage."""
+    bill_refs = extract_legal_references(bill_text)
+    budget_refs = extract_legal_references(budget_text)
+
+    exact_matches = bill_refs & budget_refs
+
+    bill_chapters = {chapter for chapter, section in bill_refs}
+    budget_chapters = {chapter for chapter, section in budget_refs}
+
+    shared_chapters = bill_chapters & budget_chapters
+
+    return {
+        "exact_reference_matches": exact_matches,
+        "shared_chapters": shared_chapters,
+        "exact_reference_count": len(exact_matches),
+        "shared_chapter_count": len(shared_chapters),
+    }
+
+
+def match_whole_bill(bill_text, budget_index, embedder):
+    """Find the budget passage most similar to the entire bill."""
+    if embedder is None:
+        raise ValueError("Whole-bill matching requires embeddings.")
+
+    passages = budget_index["passages"]
+    budget_embeddings = budget_index["embeddings"]
+
+    if not str(bill_text).strip() or not passages:
+        return None
+
+    # Embedder already splits long text into 200-word chunks,
+    # averages their embeddings, and normalizes the result.
+    bill_embedding = embedder.embed([bill_text])[0]
+
+    # Extract the bill's legal references.
+    bill_refs = extract_legal_references(bill_text)
+    bill_chapters = {chapter for chapter, section in bill_refs}
+
+    # Compare against each indexed budget passage.
+    legal_matches = []
+
+    for budget_refs in budget_index["passage_legal_references"]:
+        exact = bill_refs & budget_refs
+
+        budget_chapters = {
+            chapter for chapter, section in budget_refs
+        }
+        shared_chapters = bill_chapters & budget_chapters
+
+        legal_matches.append({
+            "exact_count": len(exact),
+            "chapter_count": len(shared_chapters),
+        })
+        
+    # Cosine similarity against every budget passage.
+    similarities = budget_embeddings @ bill_embedding
+    
+    for i, (_, passage_text) in enumerate(passages):
+        if len(passage_text.split()) < 50:
+            similarities[i] = float("-inf")
+    if not (similarities > float("-inf")).any():
+        return None
+
+    best_index = int(similarities.argmax())
+    # Calculate policy evidence for every budget passage.
+    source_terms, source_pairs = _policy_signals(bill_text)
+    policy_matches = []
+
+    for target_terms, target_pairs in budget_index["passage_policy_signals"]:
+        passed, shared, coverage, shared_pairs = _policy_evidence(
+            source_terms,
+            source_pairs,
+            target_terms,
+            target_pairs,
+            min_terms=5,
+            min_coverage=0.20,
+        )
+
+        policy_matches.append({
+            "passed": passed,
+            "coverage": coverage,
+            "shared_count": len(shared),
+        })
+
+    # Keep only passages that satisfy the policy evidence requirements.
+    eligible_indices = [
+        i for i in range(len(passages))
+        if policy_matches[i]["passed"]
+        and similarities[i] > float("-inf")
+    ]
+
+    # Among eligible passages, select the highest cosine similarity.
+    best_index = (
+        max(eligible_indices, key=lambda i: (
+            legal_matches[i]["exact_count"] > 0,
+            similarities[i],
+            ),
+        )
+        if eligible_indices
+        else int(similarities.argmax())
+    )
+    # Collect policy-specific overlap for the selected passage.
+    source_terms, source_pairs = _policy_signals(bill_text)
+    target_terms, target_pairs = budget_index[
+        "passage_policy_signals"
+    ][best_index]
+
+    passed, shared, coverage, shared_pairs = _policy_evidence(
+        source_terms,
+        source_pairs,
+        target_terms,
+        target_pairs,
+        min_terms=5,
+        min_coverage=0.20,
+    )
+
+    return {
+        "similarity": round(float(similarities[best_index]), 3),
+        "best_target_section": passages[best_index][0],
+        "target_text": passages[best_index][1],
+        "policy_shared_terms": "; ".join(sorted(shared)),
+        "policy_shared_term_count": len(shared),
+        "policy_source_coverage": round(coverage, 3),
+        "policy_shared_phrases": "; ".join(
+            " ".join(pair) for pair in sorted(shared_pairs)
+        ),
+        "policy_evidence_pass": passed,
+        "exact_reference_count": legal_matches[best_index]["exact_count"],
+        "shared_chapter_count": legal_matches[best_index]["chapter_count"],
+    }
