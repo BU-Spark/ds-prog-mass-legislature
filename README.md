@@ -35,6 +35,8 @@ The scraper runs as a three-step pipeline: inding the agenda bills, scraping see
   - Calculates semantic similarity between bill sections.
   - Compares shared concepts such as citations, dollar amounts, and defined terms.
   - Outputs bill-level and section-level matching scores.
+  - Includes study orders when identifying relationships between legislative bills.
+  - Preserves the existing bill-to-bill matching methods for wording overlap, semantic similarity, and shared concepts.
 * `refetch_bill_text.py` - Re-scrapes bill text to address incomplete or truncated records.
   - Retrieves updated bill text.
   - Compares old and new text lengths.
@@ -92,6 +94,8 @@ For contributing: create a new branch from `dev`, open a Pull Request to `dev`, 
 ## Project Description
 
 This is a BU Spark! DS539 (Fall 2026) project for Progressive Massachusetts. The goal is to track what happens to the bills on their legislative agenda as they move through the Massachusetts Legislature. This branch covers data collection: getting each agenda bill's details, text, and history into a structured format the rest of the project can build on.
+
+The legislative timeline branch extends the matching process to include study orders, allowing the project to identify additional connections between bills as they move through the legislature.
 
 ## Data Locations
 
@@ -159,4 +163,5 @@ I found these while reading the code and the last run's output. They're worth fi
 * **Date formats don't match.** `filed_date` is ISO (`2025-01-09`) while history dates are `M/D/YYYY` (`2/27/2025`).
 * **The test depends on the live site**, so it fails offline or if the page changes.
 * **`requirements.txt` has no version pins.**
+* **Study orders do not establish policy incorporation.** A bill being sent to a study order indicates a legislative relationship, but does not mean its proposed language was adopted.
 

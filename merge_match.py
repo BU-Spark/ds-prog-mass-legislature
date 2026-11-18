@@ -254,8 +254,9 @@ def merge_kind(action):
     direction 'forward': source_bill was merged into related_bill.
     direction 'reverse': related_bill was merged into source_bill."""
     a = str(action or "").lower()
-    if "study order" in a:
-        return None, None
+    # Study orders are successors and should be followed.
+    if "accompanied a study order" in a:
+        return "study order", "forward"
     # On the original bill: "Accompanied a new draft, see H5590" / "New draft substituted, see H5305" /
     # "...ought to pass with an amendment, substituting a new draft, see S2696"
     if any(k in a for k in ("accompanied a new draft", "new draft substituted", "substituting a new draft")):
@@ -293,9 +294,6 @@ def load_pairs(related):
             continue
         a, b = norm_bill_id(r["source_bill"]), norm_bill_id(r["related_bill"])
         src, tgt = (a, b) if direction == "forward" else (b, a)
-        if (src, tgt) in study:
-            skipped["study order (seen from the study order's side)"] = skipped.get("study order (seen from the study order's side)", 0) + 1
-            continue
         if src != tgt:
             rows.append({"src": src, "tgt": tgt, "merge_type": kind, "action": r.get("action")})
     pairs = pd.DataFrame(rows, columns=["src", "tgt", "merge_type", "action"])
