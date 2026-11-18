@@ -30,6 +30,17 @@ The scraper runs as a three-step pipeline: inding the agenda bills, scraping see
 * `export_actions.py` - flattens bill histories into a CSV tracker (`output/legislative_actions.csv`) any unassigned dockets lacking history are placed into
    `output/legislative_actions_review.json`
 * `tests/test_scraper.py` - checks that the text of H.3110 comes back with sections 1–9 in order.
+* `merge_match.py` - Compares bills with legislation they may have been merged into.
+  - Measures wording overlap using five-word sequences.
+  - Calculates semantic similarity between bill sections.
+  - Compares shared concepts such as citations, dollar amounts, and defined terms.
+  - Outputs bill-level and section-level matching scores.
+  - Includes study orders when identifying relationships between legislative bills.
+  - Preserves the existing bill-to-bill matching methods for wording overlap, semantic similarity, and shared concepts.
+* `refetch_bill_text.py` - Re-scrapes bill text to address incomplete or truncated records.
+  - Retrieves updated bill text.
+  - Compares old and new text lengths.
+  - Generates a report of the results.
 
 ## How To Use
 
@@ -39,7 +50,7 @@ You'll need Python 3 and [Git](https://git-scm.com).
 # Clone the repo and switch to this branch
 git clone https://github.com/BU-Spark/ds-prog-mass-legislature.git
 cd ds-prog-mass-legislature
-git checkout feature/scraper
+git checkout dev
 
 # Install dependencies (requests, beautifulsoup4, pypdf)
 pip install -r requirements.txt
@@ -56,11 +67,24 @@ python crawl_related_bills.py --max-bills 500
 # Step 4: Export denormalized actions -> output/legislative_actions.csv
 python export_actions.py
 
+# Step 5 (Optional): Re-fetch bill text to correct incomplete records
+python refetch_bill_text.py --only-short
+
+# Step 6: Compare merged bills using wording, meaning, and shared concepts
+pip install pandas sentence-transformers
+python merge_match.py
+
+# Optional: Test matching on the first 5 pairs
+python merge_match.py --limit 5
+
+# Optional: Run matching without semantic embeddings
+python merge_match.py --no-embed
+
 # Optional: scrape just the single test bill -> bill.json
 python scraper.py
 
 # Run the tests (needs internet access; hits the live site)
-python -m unittest discover tests
+python -m unittest discover -s tests
 ```
 
 A full run of step 2 takes a few minutes because of the 1-second delay plus three or four requests per bill.
@@ -70,6 +94,8 @@ For contributing: create a new branch from `dev`, open a Pull Request to `dev`, 
 ## Project Description
 
 This is a BU Spark! DS539 (Fall 2026) project for Progressive Massachusetts. The goal is to track what happens to the bills on their legislative agenda as they move through the Massachusetts Legislature. This branch covers data collection: getting each agenda bill's details, text, and history into a structured format the rest of the project can build on.
+
+The legislative timeline branch extends the matching process to include study orders, allowing the project to identify additional connections between bills as they move through the legislature.
 
 ## Data Locations
 
@@ -84,6 +110,13 @@ This is a BU Spark! DS539 (Fall 2026) project for Progressive Massachusetts. The
   - Columns: `Date`, `Branch`, `Bill Name`, `Bill Number`, `Bill Content`, `Stage`, `Action`, `Related Bill`, `Sources`
 * Sourcesoutput/legislative_actions_review.json - data quality audit file logging bills/dockets with missing histories.
 * output/related_bill_crawl_report.json - crawler diagnostics (coverage counts, unresolved references, error logs)
+* output/merge_scores.csv - Bill-level matching scores and incorporation estimates.
+* output/merge_sections.csv - Section-level comparisons based on wording, semantic similarity, and shared concepts.
+* output/study_orders.csv - Bills identified as sent to study orders.
+* output/all_bills.before_refetch.jsonl - backup of the original bill dataset before re-fetching bill text.
+* output/refetch_report.csv - report comparing the original and updated bill text lengths after re-fetching.
+* output/retry_failed_bills_report.json - results of retrying bills that previously failed during crawling.
+* output/missing_refs_recovery_report.json - results of attempts to recover missing referenced bills.
 * More detail: [Dataset Documentation](dataset-documentation)
 
 Fields in each `agenda_bills.jsonl` record:
@@ -130,4 +163,5 @@ I found these while reading the code and the last run's output. They're worth fi
 * **Date formats don't match.** `filed_date` is ISO (`2025-01-09`) while history dates are `M/D/YYYY` (`2/27/2025`).
 * **The test depends on the live site**, so it fails offline or if the page changes.
 * **`requirements.txt` has no version pins.**
+* **Study orders do not establish policy incorporation.** A bill being sent to a study order indicates a legislative relationship, but does not mean its proposed language was adopted.
 
