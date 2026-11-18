@@ -239,6 +239,8 @@ def match_pair(src_text, tgt_text, embedder, args):
             "concepts": "; ".join(sorted(c)),
             "concepts_missing": "; ".join(sorted(c - tgt_concepts)),
             "best_target_section": tgt_secs[best_j][0] if best_j is not None else None,
+            "source_text": text,
+            "target_text": tgt_secs[best_j][1] if best_j is not None else None, 
             "match_type": match_type,
             # "concepts only" (shared citations/amounts/terms, little shared text) is a flag, not
             # evidence: two bills amending the same section of law share its citation.
