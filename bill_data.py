@@ -16,7 +16,7 @@ from merge_match import merge_kind
 
 BILLS_FILE = ALL_BILLS_FILE       # output/all_bills.jsonl
 AGENDA_FILE = INPUT_FILE          # output/agenda_bills.jsonl 
-BUDGET_FILE = Path("output/budget_matches.csv")      
+BUDGET_FILE = Path("output/budget_scores.csv")        # written by budget_match.py
 MERGE_SCORES_FILE = Path("output/merge_scores.csv")      
 MERGE_SECTIONS_FILE = Path("output/merge_sections.csv")  
 COMPANIONS_FILE = Path("output/companions.json")    
@@ -46,17 +46,20 @@ def fmt_date(d):
 
 def kind_of(action):
     """How an action ties this bill to another one, using the team's merge_kind (merge_match.py).
-    merge_kind skips study orders on purpose, so they are checked first here.
+    merge_kind now counts study orders as merges too (feature/legislative-timeline), so no special check here.
       draft     this bill was replaced by a new draft      ("Accompanied a new draft, see H5590")
       draft_of  this bill is the new draft of others       ("New draft of H78, H80")
       by        the others were merged into this bill      ("Accompanied by H3591 and H3598")
       to        this bill was merged into the lead bill    ("Accompanied H3594")
-      study     sent to a study order"""
-    if re.search(r"study order", action or "", re.I):
+      study     this bill was merged into a study order    ("Accompanied a study order, see S2931")"""
+    if re.search(r"study order", action or "", re.I):   # also right on an older merge_match.py that skips study orders
         return "study"
-    return {("new draft", "forward"): "draft", ("new draft", "reverse"): "draft_of",
+    return {("study order", "forward"): "study",
+            ("new draft", "forward"): "draft", ("new draft", "reverse"): "draft_of",
             ("accompanied by", "reverse"): "by", ("accompanied by", "forward"): "to"}.get(merge_kind(action), "other")
 
+
+# ---------- loading ----------
 
 
 def load_bills(path=BILLS_FILE):
@@ -86,7 +89,7 @@ def load_agenda_ids(path=AGENDA_FILE):
 
 
 def load_budget(path=BUDGET_FILE):
-    """{bill id: [match dicts]} from the text matcher's output, if it exists."""
+    """{bill id: [rows]} from budget_match.py's budget_scores.csv, if it exists."""
     out = {}
     if Path(path).exists():
         with open(path, encoding="utf-8-sig", newline="") as f:
@@ -105,17 +108,25 @@ def _sort_id(i):
 
 
 def group_bills(bills):
-    
+    """Group companion bills (same title ignoring case, or listed in companions.json).
+    A new draft or study order is not a companion, but it has no page of its own either: it is
+    attached to the page of the bill it replaced (g["followup_ids"]) and shown there as its final status."""
     companions = []
     if COMPANIONS_FILE.exists():
         companions = [[normalize_reference(x) for x in c] for c in json.loads(COMPANIONS_FILE.read_text())]
-    derived = set()
+    derived, originals = set(), {}          # originals: derived bill -> bills it replaced
     for b in bills.values():
         for a in b["acts"]:
-            if a["kind"] == "draft_of":
+            if a["kind"] == "draft_of":      # "New draft of H1405"
                 derived.add(b["id"])
-            elif a["kind"] in ("draft", "study"):
-                derived.update(r for r in a["refs"] if r in bills)
+                for r in a["refs"]:
+                    if r in bills:
+                        originals.setdefault(b["id"], []).append(r)
+            elif a["kind"] in ("draft", "study"):  # "Accompanied a new draft, see H5590" / "...a study order, see S2931"
+                for r in a["refs"]:
+                    if r in bills:
+                        derived.add(r)
+                        originals.setdefault(r, []).append(b["id"])
     by_key = {}
     for bid in sorted(bills, key=_sort_id):
         merged = next((c for c in companions if bid in c), None)
@@ -125,12 +136,91 @@ def group_bills(bills):
             key = "d:" + bid
         else:
             key = _title_key(bills[bid]["name"])
-        g = by_key.setdefault(key, {"key": key, "name": bills[bid]["name"], "ids": []})
+        g = by_key.setdefault(key, {"key": key, "name": bills[bid]["name"], "ids": [], "followup_ids": []})
         g["ids"].append(bid)
-    groups = sorted(by_key.values(), key=lambda g: g["name"].lower())
-    return groups, {i: g for g in groups for i in g["ids"]}
+    all_groups = list(by_key.values())
+    owner = {i: g for g in all_groups for i in g["ids"]}
 
-REL_LABEL = {"study": "Study order for", "draft": "New draft of", "with": "Merged into",
+    def parents(bid, seen=()):
+        """Pages of the non-derived bills this one replaced (follows chains of drafts)."""
+        out = []
+        for o in originals.get(bid, []):
+            if o in seen or o not in owner:
+                continue
+            if owner[o]["key"].startswith("d:"):
+                out += parents(o, seen + (bid,))
+            elif owner[o] not in out:
+                out.append(owner[o])
+        return out
+
+    groups, hidden = [], {}
+    for g in all_groups:
+        ps = parents(g["ids"][0]) if g["key"].startswith("d:") else []
+        if ps:
+            hidden[g["ids"][0]] = ps
+            for p in ps:
+                p["followup_ids"].append(g["ids"][0])
+        else:
+            groups.append(g)
+    groups.sort(key=lambda g: g["name"].lower())
+    group_of = {i: g for g in groups for i in g["ids"]}
+    for d, ps in hidden.items():        # searching or linking to H5590 opens the page of the bill it replaced
+        group_of[d] = ps[0]
+    return groups, group_of
+
+
+def lanes(g, bills, cap=8):
+    """Everything on one page, split by chamber: {"House": [item...], "Senate": [item...]}.
+    An item is {"id", "bill" (None if not collected), "role", "member" (bool)}.
+    Members come first, then what they became (new draft, study order, lead bill), then bills merged into them."""
+    ids = list(g["ids"])
+    items = {i: {"id": i, "bill": bills[i], "role": "Filed bill", "member": True} for i in ids}
+    order = list(ids)
+    queue, extra_absorbed = list(ids), 0
+    while queue:                                    # follow forward links, e.g. H1405 -> H5590
+        cur = queue.pop(0)
+        for a in (bills[cur]["acts"] if cur in bills else []):
+            if a["kind"] not in ("draft", "study", "to"):
+                continue
+            for n in a["refs"]:
+                if n in items:
+                    continue
+                role = {"draft": "New draft of ", "study": "Study order merging ", "to": "Lead bill for "}[a["kind"]] + show(cur)
+                items[n] = {"id": n, "bill": bills.get(n), "role": role, "member": False}
+                order.append(n)
+                queue.append(n)
+    absorbed = []
+    for i in ids:                                   # bills merged into a member: "Accompanied by H3591 and H3598"
+        for a in bills[i]["acts"]:
+            if a["kind"] == "by":
+                absorbed += [(n, i) for n in a["refs"] if n not in items and n != i]
+    for n, i in absorbed[:cap]:
+        items[n] = {"id": n, "bill": bills.get(n), "role": "Merged into " + show(i), "member": False}
+        order.append(n)
+    extra_absorbed = max(0, len(absorbed) - cap)
+    out = {"House": [], "Senate": []}
+    for n in order:
+        out["Senate" if n.startswith("S") else "House"].append(items[n])
+    out["more"] = extra_absorbed
+    return out
+
+
+def chain_html(items):
+    """Horizontal strip: filed bill(s) -> what they became. Plain HTML, styled by the .chain classes."""
+    def node(it):
+        b = it["bill"]
+        label = status(b) if b else "History not collected"
+        return (f'<span class="node{"" if it["member"] else " final"}"><b>{_link(it["id"])}</b>'
+                f'<small>{esc(it["role"] if not it["member"] else label)}</small>'
+                + (f'<small class="st">{esc(label)}</small>' if not it["member"] else "") + '</span>')
+    first = [node(i) for i in items if i["member"]]
+    rest = [node(i) for i in items if not i["member"]]
+    parts = ['<span class="plus">+</span>'.join(first)] if first else []
+    parts += [f'<span class="arr">→</span>{r}' for r in rest]
+    return '<div class="chain">' + "".join(parts) + '</div>'
+
+
+REL_LABEL = {"study": "Study order merging", "draft": "New draft of", "with": "Merged into",
              "into": "Carries", "draftof": "Replaced by", "rel": "Related to"}
 _KIND_TO_REL = {"study": "study", "draft": "draft", "by": "with", "to": "into", "draft_of": "draftof", "other": "rel"}
 
@@ -156,7 +246,7 @@ def status(b):
     a = last["action"].lower()
     k = last["kind"]
     if k == "study":
-        return "Folded into study order"
+        return "Merged into study order"
     if k == "draft":
         return "Replaced"
     if k == "draft_of":
@@ -192,7 +282,7 @@ def story(b):
         if k == "draft":
             s = f"A new draft, {refs[0]}, took over{on}. The language may now live there."
         elif k == "study":
-            s = f"Sent to study order {refs[0]}{on}."
+            s = f"Merged into study order {refs[0]}{on}, which carries the topic forward."
         elif k == "by":
             s = f"{_and_list(refs)} {'was' if len(refs) == 1 else 'were'} merged into this bill{on}."
         elif k == "to":
@@ -248,7 +338,7 @@ def search(q, groups, limit=8):
     hits = []
     for g in groups:
         score = 0
-        for i in g["ids"]:
+        for i in g["ids"] + g.get("followup_ids", []):
             if re.fullmatch(r"[HS]D?\d+", nq):
                 score = max(score, 100 if i == nq else 60 if i.startswith(nq) else 0)
             elif nq.isdigit():
@@ -333,3 +423,31 @@ def score_card(row):
                         (("verbatim", "verbatim"), ("reworded", "reworded"), ("concepts_only", "concepts only"),
                          ("partial", "partial"), ("not_found", "not found")))
     return f'<div class="mc">{head}<div class="tiles">{t}</div><p class="mt">{counts}</p></div>'
+
+
+def budget_card(row):
+    """HTML for one budget_scores.csv row: best budget section, how strong, and why (HTML-safe)."""
+    num = normalize_reference(row.get("bill_number"))
+    bid = (f'{"Senate" if num.startswith("S") else "House"} · {show(num)} vs budget '
+       f'{show(esc(row.get("budget_id") or "budget"))}')
+    src = row.get("budget_source") or ""
+    link = f' <a href="{esc(src)}" target="_blank" rel="noopener">Source</a>' if src.startswith("http") else ""
+    if row.get("status") != "ok":
+        return f'<div class="wh"><div class="k">{bid}</div><p class="muted">Not checked: {esc(row.get("status") or "unknown")}.</p></div>'
+    strong = str(row.get("policy_evidence_pass")).lower() == "true"
+    badge = "Likely in the budget" if strong else "No clear match"
+    sim = row.get("similarity") or ""
+    sec = esc(row.get("best_target_section") or "")
+    text = (row.get("target_text") or "").strip()
+    text = esc(text[:320] + ("…" if len(text) > 320 else ""))
+    terms = [t.strip() for t in str(row.get("policy_shared_terms") or "").split(";") if t.strip()][:10]
+    phrases = [t.strip() for t in str(row.get("policy_shared_phrases") or "").split(";") if t.strip()][:5]
+    why = ""
+    if terms:
+        why += f'<p class="muted">Shared policy words: {esc(", ".join(terms))}.</p>'
+    if phrases:
+        why += f'<p class="muted">Shared phrases: {esc(", ".join(phrases))}.</p>'
+    note = ("" if strong else '<p class="muted">The closest budget section is shown for reference only. '
+            'It does not share enough policy-specific wording to count as a match.</p>')
+    return (f'<div class="wh"><div class="k">{bid}</div><div class="k">{badge} <span class="badge">similarity {esc(sim)}</span></div>'
+            f'<p><b>{sec}</b>{link}</p><p>{text}</p>{why}{note}</div>')

@@ -119,13 +119,25 @@ a{color:var(--navy)}
 .foot .fn{text-transform:uppercase;letter-spacing:.1em;font-size:12px;font-weight:600;color:#fff;margin:0 0 6px}
 .foot p{margin:0 0 18px;font-size:13px;max-width:46ch;opacity:.9}
 .foot a{color:#DCE3F1}
-.st-key-acard_match [data-testid="stMarkdownContainer"]{margin-bottom:14px}
-.st-key-acard_match .h4{margin-bottom:10px}
-.st-key-acard_match .mh{margin:4px 0 16px}
-.st-key-acard_match .tiles{margin-bottom:16px;gap:12px}
-.st-key-acard_match .tile{padding:16px 10px}
-.st-key-acard_match .mt{margin:0 0 6px;line-height:1.7}
-.st-key-acard_match [data-testid="stExpander"]{margin:18px 0 14px}
+[class*="st-key-acard_match"] [data-testid="stMarkdownContainer"]{margin-bottom:14px}
+[class*="st-key-acard_match"] .h4{margin-bottom:10px}
+[class*="st-key-acard_match"] .mh{margin:4px 0 16px}
+[class*="st-key-acard_match"] .tiles{margin-bottom:16px;gap:12px}
+[class*="st-key-acard_match"] .tile{padding:16px 10px}
+[class*="st-key-acard_match"] .mt{margin:0 0 6px;line-height:1.7}
+[class*="st-key-acard_match"] [data-testid="stExpander"]{margin:18px 0 14px}
+[class*="st-key-acard_lane"] [data-testid="stMarkdownContainer"]{margin-bottom:14px}
+[class*="st-key-acard_lane"] [data-testid="stElementContainer"]{margin-bottom:6px}
+[class*="st-key-acard_lane"] .h4{margin-bottom:14px}
+[class*="st-key-acard_lane"] .wh{margin:6px 0 4px}
+[class*="st-key-acard_lane"] [data-testid="stExpander"]{margin:16px 0 8px}
+.chain{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px;margin:4px 0 14px}
+.chain .node{display:flex;flex-direction:column;gap:2px;border:1px solid #D5DBE8;border-radius:12px;padding:10px 14px;background:#F6F8FC;min-width:130px}
+.chain .node b,.chain .node b a{font-size:17px;color:#24407A}
+.chain .node small{font-size:12px;color:#5B6478}
+.chain .node.final{background:#EAF0FB;border-color:#24407A}
+.chain .arr{align-self:center;font-size:22px;color:#24407A}
+.chain .plus{align-self:center;color:#5B6478}
 @media (max-width:700px){.features{grid-template-columns:repeat(2,1fr)}.rows li{grid-template-columns:auto 1fr}.foot .wrap{grid-template-columns:1fr}}
 </style>"""
 
@@ -134,7 +146,7 @@ ART = ('<svg class="art" viewBox="0 0 400 220" aria-hidden="true" fill="#fff"><r
        '<circle cx="200" cy="28" r="7"/><rect x="150" y="105" width="100" height="18"/></svg>')
 ICONS = [("--c1", "Full history", "Every action since filing", '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
          ("--c2", "Companion bills", "House and Senate together", '<rect x="8" y="8" width="11" height="12" rx="2"/><path d="M5 16V6a2 2 0 0 1 2-2h8"/>'),
-         ("--c3", "Related bills", "Drafts and study orders", '<circle cx="6" cy="6" r="2.2"/><circle cx="18" cy="9" r="2.2"/><circle cx="8" cy="18" r="2.2"/><path d="M8 6h3a5 5 0 0 1 5 3M6 8.2v7.6"/>'),
+         ("--c3", "Final status", "New drafts and study orders", '<circle cx="6" cy="6" r="2.2"/><circle cx="18" cy="9" r="2.2"/><circle cx="8" cy="18" r="2.2"/><path d="M8 6h3a5 5 0 0 1 5 3M6 8.2v7.6"/>'),
          ("--c4", "Budget links", "FY26–27 matches", '<circle cx="12" cy="12" r="8.5"/><path d="M14.8 9.3c-.5-.9-1.6-1.4-2.8-1.4-1.6 0-2.8.8-2.8 2s1.2 1.7 2.8 2 2.8.8 2.8 2-1.2 2-2.8 2c-1.3 0-2.4-.6-2.9-1.5M12 6.5v11"/>')]
 
 
@@ -248,70 +260,67 @@ with st.container(key="wrap"):
                        f'<span class="badge">{bd.status(first)}</span></div>')
                     st.button("Open bill", key=f"open_{i}", on_click=goto, args=(g["ids"][0],))
 
-    else: 
+    else:  # ---- one bill page ----
         g = by_key[key]
         members = [bills[i] for i in g["ids"]]
+        lane = bd.lanes(g, bills)
         st.button("← All bills", key="back", on_click=go_home)
         md('<div class="billhead"><p class="eyebrow">' + ("Companion bills" if len(members) > 1 else "Bill") + f'</p><div class="h2">{bd.esc(g["name"])}</div>'
            '<div class="chips">' + "".join(f'<span class="chip">{bd.show(b["id"])} · {bd.status(b)}</span>' for b in members) + '</div></div>')
         left, right = st.columns([2.6, 1], gap="large")
 
-        with left:
-            for b in members:
-                with st.expander(f"{bd.show(b['id'])}  ·  {len(b['acts'])} actions", expanded=True):
-                    md(f'<a class="src" href="{bd.esc(b["url"])}" target="_blank" rel="noopener">Bill page on malegislature.gov</a>')
-                    pick = st.pills("Branch", ["All", "House", "Senate", "Joint"], default="All",
-                                    key=f"br_{b['id']}", label_visibility="collapsed") or "All"
-                    md(rows_html(b, pick))
-            with st.container(key="acard_match"):
-                            md('<div class="h4">Text match</div>')
-                            pairs = bd.merge_rows_for(g["ids"], scores)
-                            if not bd.MERGE_SCORES_FILE.exists():
-                                md('<p class="muted">No text-match results found. Run <code>python merge_match.py</code> to create '
-                                   '<code>output/merge_scores.csv</code>, then clear the app cache.</p>')
-                            elif not pairs:
-                                md('<p class="muted">No text-match score for this bill. Only bills merged into, or absorbing, another bill are scored '
-                                   '(study orders are not).</p>')
-                            for row in pairs:
-                                md(bd.score_card(row))
-                                sec = sections_for(row["original_bill"], row["merged_into"]) if row.get("status") == "ok" else None
-                                if sec is not None and not sec.empty:
-                                    with st.expander(f"Section by section: {bd.show(row['original_bill'])} → {bd.show(row['merged_into'])}"):
-                                        st.dataframe(sec, hide_index=True)
-                            if pairs:
-                                md('<p class="mt">Automated match. Thresholds are still being tuned, so treat the numbers as a guide.</p>')
+        with left:  # House on top, Senate underneath; each shows the filed bill and what it became
+            for chamber in ("House", "Senate"):
+                items = lane[chamber]
+                with st.container(key=f"acard_lane_{chamber.lower()}"):
+                    md(f'<div class="h4">{chamber} history</div>')
+                    if not items:
+                        md(f'<p class="muted">No {chamber} bill is tracked for this topic.</p>')
+                        continue
+                    md(bd.chain_html(items))
+                    md("".join(f'<div class="wh"><div class="k">{bd.show(it["id"])} · what happened</div><p>{bd.story(it["bill"])}</p></div>'
+                               for it in items if it["member"]))
+                    for it in items:
+                        b = it["bill"]
+                        if b is None:
+                            md(f'<div class="dash">{bd.show(it["id"])}: its full history lists here once collected.</div>')
+                            st.link_button(f"View {bd.show(it['id'])} on malegislature.gov", f"{bd.bill_url_for_reference(it['id'])}/BillHistory")
+                            continue
+                        with st.expander(f"{bd.show(b['id'])}  ·  {it['role']}  ·  {len(b['acts'])} actions", expanded=True):
+                            md(f'<a class="src" href="{bd.esc(b["url"])}" target="_blank" rel="noopener">Bill page on malegislature.gov</a>')
+                            pick = st.pills("Branch", ["All", "House", "Senate", "Joint"], default="All",
+                                            key=f"br_{b['id']}", label_visibility="collapsed") or "All"
+                            md(rows_html(b, pick))
+            if lane["more"]:
+                md(f'<p class="muted">{lane["more"]} more bills were merged into these. Open the bill pages on malegislature.gov to see them.</p>')
 
-        with right:
-            with st.container(key="acard_what"):
-                md('<div class="h4">What happened</div>' + "".join(
-                    f'<div class="wh"><div class="k">{bd.show(b["id"])} · {bd.status(b)}</div><p>{bd.story(b)}</p></div>' for b in members))
-            with st.container(key="acard_related"):
-                md('<div class="h4">Related bills</div>')
-                rel = bd.related(members, set(g["ids"]))
-                sim = bd.similar_to(g, agenda_groups) if g["agenda"] else []
-                if not rel and not sim:
-                    md('<p class="muted">No drafts, study orders, or bundled bills recorded yet.</p>')
-                for j, r in enumerate(rel):
-                    md(f'<div class="rb{" first" if j == 0 else ""}"><div class="n"><a href="{bd.bill_url_for_reference(r["n"])}" target="_blank" rel="noopener">{bd.show(r["n"])}</a></div>'
-                       f'<div class="k">{bd.REL_LABEL[r["k"]]} {" and ".join(bd.show(f) for f in r["froms"])}</div></div>')
-                    if r["n"] in bills:
-                        with st.expander(f"History of {bd.show(r['n'])}"):
-                            md(rows_html(bills[r["n"]]))
-                        st.button("Open bill", key=f"rel_{j}_{r['n']}", on_click=goto, args=(r["n"],))
-                    else:
-                        md('<div class="dash">Its full history lists here.</div>')
-                        st.link_button("View history", f"{bd.bill_url_for_reference(r['n'])}/BillHistory")
-                for j, o in enumerate(sim):
-                    md(f'<div class="rb"><div class="n">{", ".join(bd.show(i) for i in o["ids"])}</div><div class="k">Similar title on the agenda</div>'
-                       f'<p class="muted" style="margin-bottom:10px">{bd.esc(o["name"])}</p></div>')
-                    st.button("Open bill", key=f"sim_{j}", on_click=goto, args=(o["ids"][0],))
+        with right:  # the only side card: is it in the budget?
             with st.container(key="acard_budget"):
-                matches = [m for b in members for m in budget.get(b["id"], [])]
-                body = "".join(f'<div class="wh"><div class="k">{bd.esc(str(m.get("fy")))} · {bd.esc(str(m.get("vehicle")))}</div>'
-                               f'<p>{bd.esc(m.get("note") or "")} ' + (f'<a href="{bd.esc(m["url"])}" target="_blank">Source</a>' if m.get("url") else "") + '</p></div>'
-                               for m in matches) or ('<p class="muted">No budget or omnibus match recorded yet. '
-                                                      'A match will show the budget section and a source link here.</p>')
+                ids = g["ids"] + g["followup_ids"]
+                body = "".join(bd.budget_card(m) for i in ids for m in budget.get(i, [])) or (
+                    '<p class="muted">This bill wasn’t checked against the budget. Only agenda bills are.</p>')
                 md(f'<div class="h4">FY26–27 budget</div>{body}')
+
+        # ---- text match at the bottom, House and Senate side by side ----
+        md('<div class="h4" style="margin-top:8px">Text match</div>')
+        if not bd.MERGE_SCORES_FILE.exists():
+            md('<p class="muted">No text-match results found. Run <code>python merge_match.py</code> to create '
+               '<code>output/merge_scores.csv</code>, then clear the app cache.</p>')
+        else:
+            for col, chamber in zip(st.columns(2, gap="large"), ("House", "Senate")):
+                with col, st.container(key=f"acard_match_{chamber.lower()}"):
+                    md(f'<div class="h4">{chamber}</div>')
+                    pairs = bd.merge_rows_for([it["id"] for it in lane[chamber] if it["member"]], scores)
+                    if not pairs:
+                        md(f'<p class="muted">No text-match score for the {chamber} bill. Only bills merged into, or absorbing, '
+                           'another bill (including a study order) are scored.</p>')
+                    for row in pairs:
+                        md(bd.score_card(row))
+                        sec = sections_for(row["original_bill"], row["merged_into"]) if row.get("status") == "ok" else None
+                        if sec is not None and not sec.empty:
+                            with st.expander(f"Section by section: {bd.show(row['original_bill'])} → {bd.show(row['merged_into'])}"):
+                                st.dataframe(sec, hide_index=True)
+            md('<p class="mt">Automated match. Thresholds are still being tuned, so treat the numbers as a guide.</p>')
 
 md('<div class="foot" id="about"><div class="wrap"><div><p class="fn">MA Bill Tracker</p><p>Follows what happened to the bills on Progressive '
    'Massachusetts’s legislative agenda: amendments, new drafts, study orders, and budget matches. Built by a BU Spark! DS 539 team.</p></div>'
