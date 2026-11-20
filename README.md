@@ -37,6 +37,16 @@ The scraper runs as a three-step pipeline: inding the agenda bills, scraping see
   - Outputs bill-level and section-level matching scores.
   - Includes study orders when identifying relationships between legislative bills.
   - Preserves the existing bill-to-bill matching methods for wording overlap, semantic similarity, and shared concepts.
+  * `budget_match.py` - Compares entire legislative bills against sections of the Massachusetts state budget.
+  - Extracts and indexes budget passages, including neighboring sections.
+  - Uses semantic embeddings to identify similar budget language.
+  - Produces one best-matching budget passage per bill.
+  - Outputs matching results to `output/budget_scores.csv`.
+* `budget_match_core.py` - Contains the budget matching logic.
+  - Checks for shared policy-specific words and phrases.
+  - Filters candidate matches using policy-overlap requirements.
+  - Extracts statutory chapter and section references.
+  - Uses exact legal reference overlap to help rank matching passages.
 * `refetch_bill_text.py` - Re-scrapes bill text to address incomplete or truncated records.
   - Retrieves updated bill text.
   - Compares old and new text lengths.
@@ -74,6 +84,12 @@ python refetch_bill_text.py --only-short
 pip install pandas sentence-transformers
 python merge_match.py
 
+# Step 7: Compare agenda bills against the Massachusetts state budget
+python budget_match.py
+
+# Run the automated budget matching tests
+python -m pytest -q
+
 # Optional: Test matching on the first 5 pairs
 python merge_match.py --limit 5
 
@@ -96,6 +112,7 @@ For contributing: create a new branch from `dev`, open a Pull Request to `dev`, 
 This is a BU Spark! DS539 (Fall 2026) project for Progressive Massachusetts. The goal is to track what happens to the bills on their legislative agenda as they move through the Massachusetts Legislature. This branch covers data collection: getting each agenda bill's details, text, and history into a structured format the rest of the project can build on.
 
 The legislative timeline branch extends the matching process to include study orders, allowing the project to identify additional connections between bills as they move through the legislature.
+The budget matching branch compares legislative proposals against the Massachusetts state budget to identify potentially related policies. It combines semantic similarity, policy-specific wording, and statutory references to improve matching accuracy.
 
 ## Data Locations
 
@@ -117,6 +134,8 @@ The legislative timeline branch extends the matching process to include study or
 * output/refetch_report.csv - report comparing the original and updated bill text lengths after re-fetching.
 * output/retry_failed_bills_report.json - results of retrying bills that previously failed during crawling.
 * output/missing_refs_recovery_report.json - results of attempts to recover missing referenced bills.
+* `output/budget_scores.csv` - Bill-level budget matching results, including the best matching budget passage, semantic similarity score, shared policy terms, policy evidence, and statutory reference overlap.
+* [Massachusetts Budget H5555](https://malegislature.gov/Bills/194/H5555.pdf) - Budget document used for matching.
 * More detail: [Dataset Documentation](dataset-documentation)
 
 Fields in each `agenda_bills.jsonl` record:
@@ -164,4 +183,8 @@ I found these while reading the code and the last run's output. They're worth fi
 * **The test depends on the live site**, so it fails offline or if the page changes.
 * **`requirements.txt` has no version pins.**
 * **Study orders do not establish policy incorporation.** A bill being sent to a study order indicates a legislative relationship, but does not mean its proposed language was adopted.
+- **Semantic similarity does not prove policy incorporation.** A budget passage may discuss a related topic without adopting the proposed legislation.
+- **Some matches lack sufficient policy evidence.** In the latest run, 7 of 43 bills had matches that passed the policy-overlap requirements. The remaining results are unverified candidates.
+- **Partial policy matches are possible.** A budget passage may address only part of a bill's proposed changes.
+- **Legal references are not conclusive.** Shared statutory citations can help identify related passages but do not establish that the proposed changes were enacted.
 
