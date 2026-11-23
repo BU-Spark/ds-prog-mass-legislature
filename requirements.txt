@@ -2,8 +2,5 @@ requests
 beautifulsoup4
 pypdf
 pandas
-sentence-transformers>=3.0
-
+sentence-transformers>=3.0s
 streamlit>=1.40
-pandas
-sentence-transformers>=3.0
